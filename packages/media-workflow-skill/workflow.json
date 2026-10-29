@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "steps": [
+    { "key": "brief", "label": "需求与事实基线", "gate": true, "dependencies": [], "output": "需求、验收标准、事实基线" },
+    { "key": "materials", "label": "素材整理", "gate": false, "dependencies": ["brief"], "output": "真实素材、来源与事实核对表" },
+    { "key": "script", "label": "内容脚本", "gate": false, "dependencies": ["materials"], "output": "旁白、字幕文案与来源引用" },
+    { "key": "storyboard", "label": "分镜", "gate": true, "dependencies": ["script", "materials"], "output": "镜头、画面、时长与素材引用" },
+    { "key": "voice", "label": "配音与时间轴", "gate": false, "dependencies": ["script", "storyboard"], "output": "真实音频、字幕与边界时间轴" },
+    { "key": "composition", "label": "视觉合成", "gate": false, "dependencies": ["storyboard", "materials", "voice"], "output": "可编辑工程与场景预览" },
+    { "key": "qa", "label": "预览质检", "gate": false, "dependencies": ["composition", "voice", "materials"], "output": "检查结果、证据与待核实项" },
+    { "key": "render", "label": "正式渲染", "gate": true, "dependencies": ["qa", "composition", "voice"], "output": "成片、第一帧、媒体信息与最终检查" },
+    { "key": "package", "label": "发布包装", "gate": false, "dependencies": ["render", "script"], "output": "分平台标题、正文、封面与声明" },
+    { "key": "publish", "label": "发布与回执", "gate": true, "dependencies": ["package", "render"], "output": "逐平台提交记录与核验凭据" }
+  ]
+}

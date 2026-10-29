@@ -1,0 +1,15 @@
+{
+  "title": "本地软件回归视频（虚构资料）",
+  "description": "用下面明确标注为虚构的原文制作一条资讯视频，只用于本地软件验证，不对外发布。",
+  "style": "news",
+  "audience": "开发验收人员",
+  "requirements": "画面明确说明资料为虚构；数字与原文一致；保留原文和实际检查结果。",
+  "timezone": "Asia/Shanghai",
+  "asOf": "2026-10-23（虚构原文日期）",
+  "review": { "mode": "gates", "gates": ["brief", "storyboard", "render", "publish"] },
+  "sources": [{ "id": "source-1", "name": "虚构软件回归原文", "role": "source", "text": "这是软件回归夹具，不是真实新闻。二零二六年十月二十三日，示例团队新增三个测试项目，并优化本地导出。", "usage": "仅供本地测试，不对外发布" }],
+  "output": { "width": 640, "height": 360, "fps": 30, "durationSeconds": 6 },
+  "voice": { "mode": "none", "requiredAlignment": "sentence" },
+  "render": { "backend": "ffmpeg", "codec": "libx264" },
+  "publish": { "enabled": false, "confirm": true, "targets": [] }
+}

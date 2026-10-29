@@ -1,0 +1,7 @@
+{
+  "format": 1,
+  "title": "媒体工作流 · 本地开发",
+  "description": "发行前保留空安装列表；实际发行后由 scripts/market-index.mjs 写入可安装的 DSH 插件版本。通用技能独立分发。",
+  "metadata": { "categories": { "media": { "title": "媒体制作" } }, "labels": {}, "sortKeys": {} },
+  "plugins": []
+}

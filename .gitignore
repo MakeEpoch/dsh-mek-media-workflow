@@ -1,0 +1,6 @@
+node_modules/
+artifacts/
+.data/
+*.tgz
+packages/dsh-media-workflow/embedded-skill/
+packages/dsh-media-workflow/lib/

@@ -1,0 +1,3 @@
+- insert:
+    - id: media-workflow
+      name: '@dsh/media-workflow'

@@ -1,0 +1,24 @@
+{
+  "name": "media-workflow-workspace",
+  "private": true,
+  "version": "0.2.1",
+  "type": "module",
+  "workspaces": [
+    "packages/media-workflow-skill",
+    "packages/dsh-media-workflow"
+  ],
+  "scripts": {
+    "build": "node packages/dsh-media-workflow/scripts/build.mjs",
+    "test": "node tests/run.mjs",
+    "test:browser": "node tests/browser.mjs",
+    "dev": "node packages/dsh-media-workflow/scripts/dev.mjs",
+    "pack:check": "node scripts/check-packages.mjs",
+    "test:host": "node scripts/smoke-host.mjs",
+    "test:host-browser": "node tests/host-browser.mjs",
+    "smoke:tts": "node scripts/smoke-tools.mjs --tts",
+    "smoke:motion": "node scripts/smoke-tools.mjs --motion"
+  },
+  "devDependencies": {
+    "playwright-core": "1.62.1"
+  }
+}

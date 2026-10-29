@@ -1,0 +1,30 @@
+import { chromium } from 'playwright-core';
+import { resolve } from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+const directory = resolve('artifacts/ux'), browser = await chromium.launch({ headless: true, executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
+await mkdir(directory, { recursive: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), errors = [];
+page.on('pageerror', e => errors.push(e.message));
+const shot = name => page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
+try {
+  await page.goto('http://127.0.0.1:3189/');
+  await page.getByRole('heading', { name: '制作任务', exact: true }).waitFor();
+  await page.getByRole('heading', { name: '一条资讯，如何讲清楚（虚构样例）', exact: true }).waitFor();
+  await shot('tasks');
+  await page.getByRole('button', { name: '查看评审 →', exact: true }).click();
+  await page.getByRole('heading', { name: '分镜 v1 需要评审', exact: true }).waitFor();
+  await shot('task-detail');
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await page.getByLabel('任务工作目录', { exact: true }).waitFor(); await shot('settings-directory');
+  await page.getByRole('button', { name: '制作偏好', exact: false }).click(); await shot('settings-preferences');
+  await page.getByRole('button', { name: '工具与诊断', exact: false }).click(); await shot('settings-tools');
+  await page.getByRole('button', { name: '新建', exact: true }).click(); await shot('new-task');
+  await page.setViewportSize({ width: 400, height: 920 });
+  await page.goto('http://127.0.0.1:3189/?mode=companion');
+  await page.locator('.mw-companion h2').waitFor();
+  await shot('companion');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  await writeFile(resolve(directory, 'result.json'), JSON.stringify({ pageErrors: errors, horizontalOverflowAt400px: overflow, boundary: 'Read-only local preview of fictional sample tasks; no daily DSH connection or content changes.' }, null, 2));
+  if (errors.length || overflow) throw new Error('UX layout inspection failed');
+  console.log(JSON.stringify({ screenshots: directory, pageErrors: errors, horizontalOverflowAt400px: overflow }));
+} finally { await browser.close(); }
