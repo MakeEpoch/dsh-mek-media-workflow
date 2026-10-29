@@ -96,3 +96,5 @@ npm run dev
 ## 许可证
 
 代码采用 [MIT License](LICENSE)。试听音频由 MiMo 合成，使用 MiMo 服务时请遵循其服务条款。
+
+界面中的任务时间按浏览器所在时区显示；任务需求的业务时区可在创建任务时单独设置，默认 `Asia/Shanghai`。

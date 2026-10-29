@@ -1,8 +1,9 @@
+import { formatShortTime } from './time.js';
 import React from 'react';
 import { stepsFor, workType } from '../../media-workflow-skill/lib/profiles.mjs';
 import { Button, Badge, MODES, STATUS, nextAction } from './ui.jsx';
 
-const shortTime = value => value ? new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '';
+const shortTime = value => formatShortTime(value);
 
 export function Overview({ listing, client, storage, query, setQuery, group, setGroup, status, setStatus, offset, setOffset, onOpen, onCreate, onSettings, onArchive, busy, companion }) {
   const summary = listing.summary || {}, groups = [['', '全部任务', summary.all], ['attention', '待我处理', summary.attention], ['active', '制作中', summary.active], ['done', '已完成', summary.done], ['draft', '草稿', summary.draft], ['archived', '已归档', summary.archived]];

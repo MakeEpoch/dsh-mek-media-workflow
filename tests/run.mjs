@@ -12,3 +12,5 @@ await import('./content.test.mjs');
 await import('./publications.test.mjs');
 
 await import('./extensions.test.mjs');
+
+await import('./time.test.mjs');

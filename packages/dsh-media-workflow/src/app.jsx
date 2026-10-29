@@ -1,3 +1,4 @@
+import { formatShortTime } from './time.js';
 import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { stepsFor, workType } from '../../media-workflow-skill/lib/profiles.mjs';
 import { CSS } from './styles.js';
@@ -15,7 +16,7 @@ const LABELS = { draft: '草稿', ready: '待执行', running: '制作中', publ
 const MODES = { none: '不做阶段评审', gates: '标准评审', steps: '逐步评审' };
 const ROLES = { source: '原始资料', screenshot: '真实界面', logo: 'Logo', image: '图片', video: '录屏/视频', audio: '旁白录音', music: '背景音乐' };
 const bytes = value => value > 1048576 ? `${(value / 1048576).toFixed(1)} MB` : `${Math.ceil(value / 1024)} KB`;
-const shortTime = value => value ? new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '未知';
+const shortTime = value => formatShortTime(value, { month: '2-digit', empty: '未知' });
 const safeLink = value => { try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
 function Button({ primary, quiet, danger, className = '', children, ...props }) { return <button type="button" className={`mw-button ${primary ? 'mw-primary' : ''} ${quiet ? 'mw-quiet' : ''} ${danger ? 'mw-danger' : ''} ${className}`} {...props}>{children}</button>; }
 function Badge({ status, children }) { return <span className={`mw-badge ${['complete', 'verified', 'pass', 'available'].includes(status) ? 'good' : ['failed', 'fail', 'corrupt'].includes(status) ? 'bad' : ['needs_review', 'needs_check', 'blocked', 'waiting_for_login', 'unknown', 'unavailable'].includes(status) ? 'warn' : ''}`}>{children ?? LABELS[status] ?? status}</span>; }
