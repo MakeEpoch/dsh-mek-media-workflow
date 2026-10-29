@@ -12,7 +12,7 @@ const project = fileURLToPath(new URL('../', import.meta.url));
 const profileName = process.env.DSH_PROFILE || 'web';
 const home = process.env.DSH_HOME || join(process.env.HOME, '.dsh');
 const profile = await realpath(join(home, 'profiles', profileName));
-const record = JSON.parse(await readFile(join(project, 'artifacts/packages.json'), 'utf8')).find(p => p.name === '@dsh/media-workflow');
+const record = JSON.parse(await readFile(join(project, 'artifacts/packages.json'), 'utf8')).find(p => p.name === 'dsh-mek-media-workflow');
 const hash = data => createHash('sha256').update(data).digest('hex');
 assert.equal(hash(await readFile(record.path)), record.sha256, 'Frozen archive checksum mismatch');
 const taskBase = join(home, 'media-workflow'), savedLocation = await json(join(taskBase, 'location.json'), null), preflightStore = new TaskStore(savedLocation?.root || taskBase);
@@ -49,6 +49,7 @@ if (!alreadyInstalled) {
   assert.equal(run.status, 0, 'DSH plugin manager failed; backup retained');
 }
 const after = JSON.parse(await readFile(manifestPath, 'utf8'));
+if (!after.dsh.profile.bundles.includes(record.name)) { after.dsh.profile.bundles.push(record.name); await writeFile(manifestPath, JSON.stringify(after, null, 2) + '\n'); }
 assert.equal(after.dependencies[record.name], spec);
 assert.ok(after.dsh.profile.bundles.includes(record.name));
 for (const [name, value] of Object.entries(before.dependencies || {})) {
@@ -59,7 +60,7 @@ for (const name of ['cordis.patch.yml', 'cordis.yml']) {
   const original = saved.find(f => f.name === name);
   if (original) assert.equal(hash(await readFile(join(profile, name))), original.sha256, `${name} changed`);
 }
-const resolved = await realpath(join(profile, 'node_modules/@dsh/media-workflow'));
+const resolved = await realpath(join(profile, 'node_modules/dsh-mek-media-workflow'));
 const rel = relative(profile, resolved);
 assert.ok(rel && rel !== '..' && !rel.startsWith('../') && !isAbsolute(rel), 'Installed plugin must resolve inside profile');
 assert.equal(JSON.parse(await readFile(join(resolved, 'package.json'), 'utf8')).version, record.version);

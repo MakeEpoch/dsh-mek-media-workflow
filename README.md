@@ -25,8 +25,8 @@
 
 | 包 | 内容 |
 | --- | --- |
-| `packages/media-workflow-skill` / `@dsh/media-workflow-skill` | SKILL.md、分类型流程定义、风格参考、CLI、持久化运行器、配音/渲染/发布适配 |
-| `packages/dsh-media-workflow` / `@dsh/media-workflow` | DSH Host、工作台、会话右侧面板、设置、原生评审与鉴权媒体路由 |
+| `packages/media-workflow-skill` / `dsh-mek-media-workflow-skill` | SKILL.md、分类型流程定义、风格参考、CLI、持久化运行器、配音/渲染/发布适配 |
+| `packages/dsh-media-workflow` / `dsh-mek-media-workflow` | DSH Host、工作台、会话右侧面板、设置、原生评审与鉴权媒体路由 |
 
 两个包源码版本为 0.2.1，插件构建时复制完整技能，包内不依赖工作区的兄弟目录。开发目录明确使用共享源码；安装包使用内嵌副本。`workflow.json` 保留旧视频定义，`lib/profiles.mjs` 定义三种流程；新任务保存对应流程快照，旧视频任务继续兼容。
 

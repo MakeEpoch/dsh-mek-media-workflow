@@ -1,5 +1,5 @@
 {
-  "name": "@dsh/media-workflow-skill",
+  "name": "dsh-mek-media-workflow-skill",
   "version": "0.2.1",
   "description": "多风格、多类型内容制作指导与原生多类型任务、版本化评审协议",
   "type": "module",

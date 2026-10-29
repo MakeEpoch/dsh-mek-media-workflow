@@ -21,7 +21,7 @@
 
 文件集中在 `artifacts/releases/0.2.1/`：
 
-- `dsh-media-workflow-0.2.1.tgz`：DSH 插件，包含内嵌 skill。
+- `dsh-mek-media-workflow-0.2.1.tgz`：DSH 插件，包含内嵌 skill。
 - `dsh-media-workflow-skill-0.2.1.tgz`：独立 npm 格式 skill 包。
 - `media-workflow-skill-0.2.1.zip`：普通技能目录包，顶层为 `media-workflow/`，含 `SKILL.md`、脚本、库与参考文档。
 - `SHA256SUMS` 与 `release.json`：摘要和本次发行验证记录。

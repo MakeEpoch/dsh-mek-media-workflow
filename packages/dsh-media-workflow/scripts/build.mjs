@@ -20,7 +20,7 @@ await build({
 });
 const result = await build({ absWorkingDir: root, entryPoints: ['src/index.jsx'], bundle: true, write: false, platform: 'browser', format: 'cjs', target: ['chrome110'], external: ['react'], legalComments: 'none', jsx: 'transform' });
 await mkdir(new URL('../lib/', import.meta.url), { recursive: true });
-await writeFile(new URL('../lib/client.js', import.meta.url), `// Generated DSH ModuleLoader bundle.\nwindow.__ModuleLoader__.load({id:"@dsh/media-workflow",factory:(require)=>{var module={exports:{}};var exports=module.exports;\n${result.outputFiles[0].text}\nreturn module.exports;}});\n`);
+await writeFile(new URL('../lib/client.js', import.meta.url), `// Generated DSH ModuleLoader bundle.\nwindow.__ModuleLoader__.load({id:"dsh-mek-media-workflow",factory:(require)=>{var module={exports:{}};var exports=module.exports;\n${result.outputFiles[0].text}\nreturn module.exports;}});\n`);
 if (process.argv.includes('--demo')) {
   await mkdir(new URL('../../../artifacts/demo/', import.meta.url), { recursive: true });
   await build({ absWorkingDir: root, entryPoints: ['src/demo.jsx'], bundle: true, outfile: fileURLToPath(new URL('../../../artifacts/demo/app.js', import.meta.url)), platform: 'browser', format: 'esm', target: ['chrome110'], nodePaths: process.env.DSH_NODE_MODULES ? [resolve(process.env.DSH_NODE_MODULES)] : [] });

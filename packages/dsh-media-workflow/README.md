@@ -37,7 +37,7 @@
 
 ## 使用
 
-1. 安装前备份目标 profile 的清单、锁文件和 Cordis patch。通过 DSH 插件管理安装本地 tarball；例如 `dsh plugin --profile web add /absolute/dsh-media-workflow-0.1.0.tgz --offline --ignore-scripts`。Web 和 Desktop 分别选择目标，不覆盖整份 profile。
+1. 安装前备份目标 profile 的清单、锁文件和 Cordis patch。通过 DSH 插件管理安装本地 tarball；例如 `dsh plugin --profile web add /absolute/dsh-mek-media-workflow-0.1.0.tgz --offline --ignore-scripts`。Web 和 Desktop 分别选择目标，不覆盖整份 profile。
 2. 打开“媒体工作台”，选择当前对话或工作台模板制作，检查本地工具。独立模型使用宿主已有配置，插件不保存 API Key。
 3. 创建需求，选择文章/图文/视频、素材核对策略、资料与规格、评审档位和发布范围。发布默认在最终内容与账号展示后确认一次。
 4. 任务与产物保存在数据根中；关闭页面后继续由 Host 执行。右侧“媒体任务”使用相同记录，可切回完整工作台。
