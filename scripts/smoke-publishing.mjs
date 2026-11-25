@@ -1,7 +1,7 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { PostFaroPublisher } from '../packages/media-workflow-skill/lib/publishing.mjs';
-import { atomic, digest } from '../packages/media-workflow-skill/lib/common.mjs';
+import { PostFaroPublisher } from '../embedded-skill/lib/publishing.mjs';
+import { atomic, digest } from '../embedded-skill/lib/common.mjs';
 
 const root = resolve('artifacts/publish-contract-smoke'); await mkdir(root, { recursive: true });
 const bytes = await readFile('artifacts/understanding-smoke/ocr.png');

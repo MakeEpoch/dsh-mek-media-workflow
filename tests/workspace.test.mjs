@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { temporary, fixtureBrief } from './helpers.mjs';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
-import { TaskStore } from '../packages/media-workflow-skill/lib/store.mjs';
-import { skillProvider } from '../packages/dsh-media-workflow/dsh/index.js';
+import { MediaService } from '../host/service.js';
+import { TaskStore } from '../embedded-skill/lib/store.mjs';
+import { skillProvider } from '../dsh/index.js';
 
 test('工作目录引导在宿主启动和 CLI 创建时补建，并保留用户自定义内容与小写文件', async t => {
   const base = await temporary(t), host = new MediaService({ root: join(base, 'host') }); t.after(() => host.dispose());

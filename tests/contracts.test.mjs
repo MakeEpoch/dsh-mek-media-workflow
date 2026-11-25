@@ -2,17 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { symlink, writeFile } from 'node:fs/promises';
-import { TaskStore } from '../packages/media-workflow-skill/lib/store.mjs';
-import { normalizeBrief, validateSettings } from '../packages/media-workflow-skill/lib/schema.mjs';
-import { validateGeneration } from '../packages/media-workflow-skill/lib/generation.mjs';
-import { receiptResult } from '../packages/media-workflow-skill/lib/publishing.mjs';
-import { lineDiff } from '../packages/dsh-media-workflow/src/client.js';
-import { registerRpc, skillProvider } from '../packages/dsh-media-workflow/dsh/index.js';
+import { TaskStore } from '../embedded-skill/lib/store.mjs';
+import { normalizeBrief, validateSettings } from '../embedded-skill/lib/schema.mjs';
+import { validateGeneration } from '../embedded-skill/lib/generation.mjs';
+import { receiptResult } from '../embedded-skill/lib/publishing.mjs';
+import { lineDiff } from '../src/client.js';
+import { registerRpc, skillProvider } from '../dsh/index.js';
 import { temporary, fixtureBrief } from './helpers.mjs';
-import { defaultRoot } from '../packages/media-workflow-skill/lib/common.mjs';
-import { main } from '../packages/media-workflow-skill/scripts/workflow.mjs';
-import { args } from '../packages/media-workflow-skill/scripts/args.mjs';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
+import { defaultRoot } from '../embedded-skill/lib/common.mjs';
+import { main } from '../embedded-skill/scripts/workflow.mjs';
+import { args } from '../embedded-skill/scripts/args.mjs';
+import { MediaService } from '../host/service.js';
 
 test('DSH CLI 默认任务根与 Host 相同，聊天创建后 Host 可读且不另建任务', async t => {
   const root = await temporary(t), before = { DSH_HOME: process.env.DSH_HOME, MEDIA_WORKFLOW_HOME: process.env.MEDIA_WORKFLOW_HOME };

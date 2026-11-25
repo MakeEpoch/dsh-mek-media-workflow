@@ -37,10 +37,12 @@
 
 ## 安装与回退
 
-构建所需 Node `>=22.16`；插件声明 DSH `>=0.2.1-rc.2 <0.3.0`，实际支持以目标宿主的验证结果为准。选择正确 profile 后，通过 DSH 官方插件管理安装已校验的冻结 `.tgz`，不链接源码。例如，使用实际文件替换下方路径：
+Node 要求 `>=22.16`；插件声明 DSH `>=0.2.1-rc.2 <0.3.0`，实际支持以目标宿主的验证结果为准。通过 DSH 的「插件 → 添加插件 → Git 仓库」安装时，填写 `https://github.com/MakeEpoch/dsh-mek-media-workflow`。从 `v0.2.9` 起，仓库根声明组合包并提供预构建文件，安装不需要运行构建脚本。旧 `v0.2.8` 标签的仓库根没有这个布局，安装旧版本请用它的 Release `.tgz`。
+
+也可以在正确的 profile 用 DSH 官方插件管理安装已校验的冻结 `.tgz`，不链接源码。例如，使用实际文件替换下方路径：
 
 ```sh
-dsh plugin --profile web add -w /absolute/path/to/dsh-mek-media-workflow-0.2.8.tgz --ignore-scripts
+dsh plugin --profile web add -w /absolute/path/to/dsh-mek-media-workflow-0.2.9.tgz --ignore-scripts
 ```
 
 安装前检查目标 profile、运行中的任务以及必要的配置留存；安装后分别确认包解析路径、内嵌技能、界面和工作目录。适用的模型、素材工具和发布账号单独验证。需要回退时用宿主插件管理重新安装已验证的旧冻结包，不用旧 profile 整体覆盖现有配置。安装与回退说明不表示已经执行。

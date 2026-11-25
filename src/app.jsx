@@ -1,6 +1,6 @@
 import { formatShortTime } from './time.js';
 import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
-import { stepsFor, workType } from '../../media-workflow-skill/lib/profiles.mjs';
+import { stepsFor, workType } from '../embedded-skill/lib/profiles.mjs';
 import { CSS } from './styles.js';
 import { lineDiff, draftStore } from './client.js';
 import { Settings } from './settings.jsx';
@@ -12,9 +12,9 @@ import { InsightsPanel } from './insights.jsx';
 import { Overview } from './overview.jsx';
 import { WorkspaceHome } from './workspace-home.jsx';
 import { nextAction, artifactLabel, AttachmentIcon, safeLink, WorkChoices } from './ui.jsx';
-import { rendererCapabilities } from '../../media-workflow-skill/lib/guidance.mjs';
-import { HUASHU_TEMPLATES, huashuTemplate } from '../../media-workflow-skill/lib/templates.mjs';
-import { CONTENT_TYPES, EXPRESSIONS, VISUAL_STYLES, linksInText } from '../../media-workflow-skill/lib/content.mjs';
+import { rendererCapabilities } from '../embedded-skill/lib/guidance.mjs';
+import { HUASHU_TEMPLATES, huashuTemplate } from '../embedded-skill/lib/templates.mjs';
+import { CONTENT_TYPES, EXPRESSIONS, VISUAL_STYLES, linksInText } from '../embedded-skill/lib/content.mjs';
 
 const LABELS = { draft: '草稿', ready: '待执行', running: '制作中', publishing: '发布中', needs_review: '待评审', blocked: '需要处理', failed: '失败待恢复', pausing: '暂停中', paused: '已暂停', complete: '已完成', needs_check: '发布待核验', corrupt: '文件需检查', pending: '未开始', prepared: '发布已准备', skipped: '不适用', submitted: '已提交', verified: '已核验发布', verified_manual: '人工确认已发布', not_published_manual: '人工确认未发布', filled: '已填入', waiting_for_login: '等待 PostFaro 登录', cancelled: '已停止', archived: '已归档' };
 const MODES = { none: '不做阶段评审', gates: '标准评审', steps: '逐步评审' };

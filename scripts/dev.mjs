@@ -8,7 +8,7 @@ import { registerRpc } from '../dsh/index.js';
 
 export async function serve({ root, port = 0, service = new MediaService({ root }) } = {}) {
   const routes = new Map(); registerRpc({ connection: { fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } } }, service);
-  const bundle = fileURLToPath(new URL('../../../artifacts/demo/app.js', import.meta.url));
+  const bundle = fileURLToPath(new URL('../artifacts/demo/app.js', import.meta.url));
   const server = createServer(async (req, res) => {
     try {
       if (![`127.0.0.1:${server.address().port}`, `localhost:${server.address().port}`].includes(req.headers.host)) { res.writeHead(403).end(); return; }
@@ -31,7 +31,7 @@ export async function serve({ root, port = 0, service = new MediaService({ root 
   return { server, service, url: `http://127.0.0.1:${server.address().port}`, async close() { await service.dispose(); await new Promise(resolve => server.close(resolve)); } };
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const root = resolve(process.env.MEDIA_WORKFLOW_HOME || fileURLToPath(new URL('../../../.data/', import.meta.url)));
+  const root = resolve(process.env.MEDIA_WORKFLOW_HOME || fileURLToPath(new URL('../.data/', import.meta.url)));
   const app = await serve({ root, port: Number(process.env.PORT || 3188) });
   console.log(`${app.url}\n本地开发服务使用 ${root}；未连接 DSH 模型时可通过阶段结果导入继续。`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { await app.close(); process.exit(0); });

@@ -4,8 +4,8 @@
 
 ## 从哪里开始
 
-- **DSH 内**：打开「媒体工作台」。首页可记录灵感，也可从「新建」写一句制作说明，选作品类型、创作风格并附上资料。会话右侧「媒体任务」可以查看同一任务、预览产物和处理评审；只有主动展开才切到完整工作台。[插件使用指南](packages/dsh-media-workflow/README.md)
-- **让当前对话制作**：加载 `media-workflow` 技能，读取任务阶段请求、处理素材，再把结果导入同一任务。工作台不会自动唤醒聊天助手。[技能入口](packages/media-workflow-skill/SKILL.md) · [执行与恢复](packages/media-workflow-skill/references/execution.md)
+- **DSH 内**：打开「媒体工作台」。首页可记录灵感，也可从「新建」写一句制作说明，选作品类型、创作风格并附上资料。会话右侧「媒体任务」可以查看同一任务、预览产物和处理评审；只有主动展开才切到完整工作台。[插件使用指南](docs/PLUGIN.md)
+- **让当前对话制作**：加载 `media-workflow` 技能，读取任务阶段请求、处理素材，再把结果导入同一任务。工作台不会自动唤醒聊天助手。[技能入口](embedded-skill/SKILL.md) · [执行与恢复](embedded-skill/references/execution.md)
 - **让工作台按模板制作**：选用宿主已配置的模型。模型负责整理需求和生成结构化内容；执行器负责排版或合成。没有配置模型时仍可创建任务，等待当前对话接手需要生成的阶段。
 
 | 成品 | 已有原生交付 | 主要依赖 |
@@ -14,7 +14,7 @@
 | 图文贴图 | 有序 PNG、HTML 阅读预览、配文和可编辑页面；九阶段，无配音 | 本机 Chrome 导出 PNG，并检查尺寸和文字溢出 |
 | 视频 | 成片、封面、音频/字幕（按任务）、预览和工程；十阶段 | FFmpeg/ffprobe；可选 TTS、用户录音或 huashu-motion 工程 |
 
-文章和图文支持四种静态主题及每页多图，另有可编辑文字、图形、图层和页序的画布。FFmpeg 和 huashu-motion 都有固定模板边界，不把自然语言方案直接变成任意动画，也不调用文生图/视频模型。需要定制工程时，用专业工具实际制作，再按[交付导入协议](packages/media-workflow-skill/references/imports.md)登记新版本。[画面、音频及依赖清单](packages/media-workflow-skill/references/capabilities.md)
+文章和图文支持四种静态主题及每页多图，另有可编辑文字、图形、图层和页序的画布。FFmpeg 和 huashu-motion 都有固定模板边界，不把自然语言方案直接变成任意动画，也不调用文生图/视频模型。需要定制工程时，用专业工具实际制作，再按[交付导入协议](embedded-skill/references/imports.md)登记新版本。[画面、音频及依赖清单](embedded-skill/references/capabilities.md)
 
 ## 工作台功能
 
@@ -35,7 +35,7 @@
 - **DSH 插件**：默认数据根是 `$DSH_HOME/media-workflow`，未设置 `DSH_HOME` 时为 `~/.dsh/media-workflow`。可以在工作台设置中切换数据根；默认根的 `location.json` 保存所选路径。切换只改变读写位置，不搬迁旧任务。以工作台显示的路径或会话技能附带的实际路径为准。
 - **独立 CLI**：显式 `--root` 优先，其次 `MEDIA_WORKFLOW_HOME`、`$DSH_HOME/media-workflow`、`~/.media-workflow`。独立 CLI 不查询插件的 `location.json`。在 DSH 对话中操作同一任务时，始终用技能附带的 `--root` 和 CLI 路径。
 - **任务、草稿与成品**：任务存于 `<数据根>/tasks/<taskId>/`。已保存的草稿也是任务，未提交表单暂存在当前浏览器。正式产物按 `artifacts/<阶段>/<版本>/` 保存，以任务中的产物登记为准；素材上传、评审、发布回执和历史均分目录保存。归档只标记任务，不移动文件。配置额外交付目录时，正式产物仍保留在任务内。
-- **工作台配置与辅助数据**：`ideas.json` / `ideas-media/` 保存灵感与附件，`styles.json` 保存风格，`metrics.json` / `rules.json` 保存复盘数据与规则，导出 Skill 默认写到 `skills/`。插件会写 `doctor.json` 和 `dsh.patch` 两份诊断快照；它们不是 DSH 配置。根目录缺少 `AGENTS.md` 时才补建，已有 `AGENTS.md` 或 `agents.md` 不覆盖；其中若有旧安装路径，优先用运行态技能给的路径。[目录引导模板](packages/media-workflow-skill/references/workspace-AGENTS.md)
+- **工作台配置与辅助数据**：`ideas.json` / `ideas-media/` 保存灵感与附件，`styles.json` 保存风格，`metrics.json` / `rules.json` 保存复盘数据与规则，导出 Skill 默认写到 `skills/`。插件会写 `doctor.json` 和 `dsh.patch` 两份诊断快照；它们不是 DSH 配置。根目录缺少 `AGENTS.md` 时才补建，已有 `AGENTS.md` 或 `agents.md` 不覆盖；其中若有旧安装路径，优先用运行态技能给的路径。[目录引导模板](embedded-skill/references/workspace-AGENTS.md)
 
 完整导出保留素材、工程、有效产物及历史、审批与回执，不含运行锁和 `working/`。新版工作台和 CLI 的完整导出会过滤任务状态中的 MiMo Token；升级前已经导出的文件不会被改写，需要分享时请重新导出，并核对素材、回执及其他私密内容。关闭页面不会停止宿主任务；停止或退出前，先暂停并确认执行进程已退出，已提交的发布仍须核验。
 
@@ -43,10 +43,10 @@
 
 | 项目 | 名称与目录 |
 | --- | --- |
-| DSH 插件 | `dsh-mek-media-workflow`，源码在 [`packages/dsh-media-workflow/`](packages/dsh-media-workflow/) |
-| 通用技能与 CLI | 技能与命令名 `media-workflow`；独立包 `dsh-mek-media-workflow-skill`，源码在 [`packages/media-workflow-skill/`](packages/media-workflow-skill/) |
+| DSH 插件 | `dsh-mek-media-workflow`：根目录的 [`package.json`](package.json) 声明组合包，[`cordis.patch.yml`](cordis.patch.yml) 注册 `media-workflow`；宿主代码在 `dsh/` 和 `host/`，界面源码在 `src/`。 |
+| 通用技能与 CLI | 技能与命令名 `media-workflow`；[`embedded-skill/`](embedded-skill/) 是同一份技能源码，随插件交付，也可以单独打成 `dsh-mek-media-workflow-skill`。 |
 
-两个源码包当前为 `0.2.8`。插件构建把共享运行器打成 `lib/runtime.js`，把界面打成 `lib/client.js`，并复制完整技能到 `embedded-skill/`；安装包不依赖仓库兄弟目录。Node 要求 `>=22.16`，插件声明 DSH `>=0.2.1-rc.2 <0.3.0`。声明范围、打包通过和具体宿主上可用是不同结论。以目标 profile 解析到的包及技能为准，不要用源码版本号证明当前已安装或已发布。
+插件构建生成 `lib/runtime.js` 和 `lib/client.js`，两份产物随源码提交，使 DSH 从 Git 安装时不必执行构建脚本。修改源码后运行 `npm run build`，并把生成文件随源码提交；`npm run build:check` 检查产物是否最新。Node 要求 `>=22.16`，插件声明 DSH `>=0.2.1-rc.2 <0.3.0`。以目标 profile 解析到的包及技能为准，不要用源码版本号证明当前已安装或已发布。
 
 ```sh
 npm ci
@@ -60,9 +60,9 @@ npm run dev               # 本机开发服务，默认 127.0.0.1:3188，数据�
 
 本地浏览器回归使用虚构资料、固定生成夹具和实际 FFmpeg，不访问日常 DSH 或发布平台，也不自动下载 Chrome。受限环境可用 `DSH_ESBUILD_MODULE`、`DSH_NODE_MODULES`、`DSH_PLAYWRIGHT_MODULE`、`CHROME_PATH` 指向已有依赖。`node scripts/preview-ux.mjs` 是另一个隔离交互预览（端口 3189）。与代理、模型、发布账号实际联通须分别验收，不以预览或夹具代替。
 
-冻结包由 `npm run pack:check` 写到 `artifacts/packages/`；安装用 DSH 官方插件管理，不链接开发源码。安装、启用、回退与重启分别操作；停用或卸载不删除任务，不用旧 profile 覆盖后来新增的配置。[安装与回退](packages/dsh-media-workflow/README.md#安装与回退)
+冻结包由 `npm run pack:check` 写到 `artifacts/packages/`；安装用 DSH 官方插件管理，不链接开发源码。安装、启用、回退与重启分别操作；停用或卸载不删除任务，不用旧 profile 覆盖后来新增的配置。[安装与回退](docs/PLUGIN.md#安装与回退)
 
-本仓库的 [市场索引](market-index.json) 当前为空，本机装有冻结包不代表已上架。实际发行后才运行 `scripts/market-index.mjs` 生成记录；npm 来源使用 `--source npm --published-at <真实 Unix 秒>`，Git 来源还需传实际仓库、40 位提交 SHA，并显式指定 `--path packages/dsh-media-workflow`（现有默认值多了一层目录）。生成索引不等于发布。
+本仓库的 [市场索引](https://github.com/MakeEpoch/dsh-mek-media-workflow/blob/main/market-index.json) 当前为空，本机装有冻结包不代表已上架。实际发行后才运行 `scripts/market-index.mjs` 生成记录；npm 来源使用 `--source npm --published-at <真实 Unix 秒>`，Git 来源使用 `--source git --url <实际仓库地址> --commit <40 位提交 SHA> --published-at <真实 Unix 秒>`。组合包在仓库根，不传 `--path`。生成索引不等于发布。
 
 原始设计与历史验证见[多类型方案](docs/CONTENT-DESIGN.md)、[交互设计](docs/UX-DESIGN.md)、[0.2.1 本机发行记录](docs/RELEASE-0.2.1.md)。当前使用以本页和相应的插件/技能说明为准。
 

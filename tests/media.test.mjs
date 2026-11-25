@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
 import { temporary, fixtureBrief, generationFixture } from './helpers.mjs';
 
 test('真实 FFmpeg 完成原文到成片，媒体与帧文件可独立回读', { timeout: 120000 }, async t => {

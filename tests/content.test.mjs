@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeBrief, briefHash } from '../packages/media-workflow-skill/lib/schema.mjs';
-import { contentCapabilities } from '../packages/media-workflow-skill/lib/content.mjs';
-import { stageGuidance } from '../packages/media-workflow-skill/lib/guidance.mjs';
-import { main } from '../packages/media-workflow-skill/scripts/workflow.mjs';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
+import { normalizeBrief, briefHash } from '../embedded-skill/lib/schema.mjs';
+import { contentCapabilities } from '../embedded-skill/lib/content.mjs';
+import { stageGuidance } from '../embedded-skill/lib/guidance.mjs';
+import { main } from '../embedded-skill/scripts/workflow.mjs';
+import { MediaService } from '../host/service.js';
 import { temporary, fixtureBrief, protocolFixture } from './helpers.mjs';
 
 test('旧需求不添加默认风格字段，自定义表达与视觉方向能规范化并进入阶段指导', () => {

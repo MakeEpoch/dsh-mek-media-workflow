@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { atomic, digest } from '../packages/media-workflow-skill/lib/common.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { atomic, digest } from '../embedded-skill/lib/common.mjs';
 
 export const fixtureBrief = (overrides = {}) => ({ title: '本地回归夹具（虚构资料）', description: '根据用户提供的虚构原文制作测试视频，不对外发布。', style: 'news', review: { mode: 'gates' }, sources: [{ id: 'source-1', name: '虚构回归原文', role: 'source', text: '以下内容仅为软件回归夹具：示例项目于二零二六年十月二十三日新增三个测试项目。所有数字均为虚构。' }], output: { width: 320, height: 180, fps: 24, durationSeconds: 1.2 }, voice: { mode: 'none' }, publish: { enabled: false }, ...overrides });
 export const generationFixture = async (kind, payload) => {

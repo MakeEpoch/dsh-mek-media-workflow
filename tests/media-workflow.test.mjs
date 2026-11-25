@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
-import { IdeaStore, applyIdeaOps, normalizeIdeas } from '../packages/media-workflow-skill/lib/ideas.mjs';
-import { StyleStore } from '../packages/media-workflow-skill/lib/styles.mjs';
-import { STYLE_PRESETS, STYLE_CATEGORIES, extractStyleCard } from '../packages/media-workflow-skill/lib/style-presets.mjs';
-import { RuleStore, analyzeMetrics, exportSkill } from '../packages/media-workflow-skill/lib/insights.mjs';
-import { main as workflow } from '../packages/media-workflow-skill/scripts/workflow.mjs';
+import { MediaService } from '../host/service.js';
+import { IdeaStore, applyIdeaOps, normalizeIdeas } from '../embedded-skill/lib/ideas.mjs';
+import { StyleStore } from '../embedded-skill/lib/styles.mjs';
+import { STYLE_PRESETS, STYLE_CATEGORIES, extractStyleCard } from '../embedded-skill/lib/style-presets.mjs';
+import { RuleStore, analyzeMetrics, exportSkill } from '../embedded-skill/lib/insights.mjs';
+import { main as workflow } from '../embedded-skill/scripts/workflow.mjs';
 import { temporary, fixtureBrief, publicationFixture } from './helpers.mjs';
 
 test('灵感墙存在插件数据根独立文件，白名单字段之外的数据被丢弃', async t => {
@@ -46,7 +46,7 @@ test('灵感媒体只接受本插件相对路径与常见格式', async t => {
 test('风格预设 8 板块 15 个且 MIT 来源保留，文本可提炼专属风格卡', async t => {
   assert.equal(STYLE_CATEGORIES.length, 8);
   assert.equal(STYLE_PRESETS.length, 15);
-  const source = await readFile(new URL('../packages/media-workflow-skill/lib/style-presets.mjs', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../embedded-skill/lib/style-presets.mjs', import.meta.url), 'utf8');
   assert.match(source, /MIT/);
   assert.match(source, /woniuniuniu\/dsh-media-desk/);
   const card = extractStyleCard('说白了，这件事没那么复杂。我试了一下，先看结论，再看细节。关键在于，别被标题带跑。', { name: '我的口播' });

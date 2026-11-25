@@ -3,12 +3,12 @@ import { createRequire } from 'node:module';
 import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
-import { serve } from '../packages/dsh-media-workflow/scripts/dev.mjs';
-import { command } from '../packages/media-workflow-skill/lib/process.mjs';
-import { pngSize } from '../packages/media-workflow-skill/lib/publications.mjs';
+import { MediaService } from '../host/service.js';
+import { serve } from '../scripts/dev.mjs';
+import { command } from '../embedded-skill/lib/process.mjs';
+import { pngSize } from '../embedded-skill/lib/publications.mjs';
 import { fixtureBrief, generationFixture, publicationFixture } from './helpers.mjs';
-import { main as workflow } from '../packages/media-workflow-skill/scripts/workflow.mjs';
+import { main as workflow } from '../embedded-skill/scripts/workflow.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.DSH_PLAYWRIGHT_MODULE || 'playwright-core');

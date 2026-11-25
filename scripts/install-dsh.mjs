@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join, relative, isAbsolute } from 'node:path';
-import { TaskStore } from '../packages/media-workflow-skill/lib/store.mjs';
-import { json } from '../packages/media-workflow-skill/lib/common.mjs';
+import { TaskStore } from '../embedded-skill/lib/store.mjs';
+import { json } from '../embedded-skill/lib/common.mjs';
 import assert from 'node:assert/strict';
 
 const project = fileURLToPath(new URL('../', import.meta.url));

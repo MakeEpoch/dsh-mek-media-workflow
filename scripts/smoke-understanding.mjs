@@ -1,9 +1,9 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { atomic, json } from '../packages/media-workflow-skill/lib/common.mjs';
-import { command } from '../packages/media-workflow-skill/lib/process.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { atomic, json } from '../embedded-skill/lib/common.mjs';
+import { command } from '../embedded-skill/lib/process.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)), evidence = join(root, 'artifacts/understanding-smoke'); await mkdir(evidence, { recursive: true });
 const runner = new WorkflowRunner({ root: join(evidence, 'tasks-store') });

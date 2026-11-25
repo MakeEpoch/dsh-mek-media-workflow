@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { modelJson } from '../packages/media-workflow-skill/lib/generation.mjs';
-import { stageGuidance, rendererCapabilities } from '../packages/media-workflow-skill/lib/guidance.mjs';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { modelJson } from '../embedded-skill/lib/generation.mjs';
+import { stageGuidance, rendererCapabilities } from '../embedded-skill/lib/guidance.mjs';
+import { MediaService } from '../host/service.js';
 import { temporary, fixtureBrief, generationFixture } from './helpers.mjs';
 
 test('CLI 的连续阶段请求附带制作指导、原始资料和当前渲染能力，导入协议不变', async t => {

@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { normalizeBrief, needsReview } from '../packages/media-workflow-skill/lib/schema.mjs';
-import { atomic, digest, isAlive } from '../packages/media-workflow-skill/lib/common.mjs';
-import { command } from '../packages/media-workflow-skill/lib/process.mjs';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
+import { normalizeBrief, needsReview } from '../embedded-skill/lib/schema.mjs';
+import { atomic, digest, isAlive } from '../embedded-skill/lib/common.mjs';
+import { command } from '../embedded-skill/lib/process.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { MediaService } from '../host/service.js';
 import { fixtureBrief, protocolFixture, publishingBrief } from './helpers.mjs';
 
 test('完整需求必须声明评审；发布预授权必须有本次原文', () => {

@@ -1,6 +1,6 @@
 import { formatShortTime } from './time.js';
 import React from 'react';
-import { stepsFor, workType } from '../../media-workflow-skill/lib/profiles.mjs';
+import { stepsFor, workType } from '../embedded-skill/lib/profiles.mjs';
 import { Button, Badge, MODES, STATUS, nextAction } from './ui.jsx';
 
 const shortTime = value => formatShortTime(value);

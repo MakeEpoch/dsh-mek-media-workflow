@@ -5,12 +5,12 @@ import { writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { join, resolve } from 'node:path';
 import { temporary } from './helpers.mjs';
-import { createClient, requireStorageRoot } from '../packages/dsh-media-workflow/src/client.js';
-import { rememberPanel } from '../packages/dsh-media-workflow/src/navigation.js';
+import { createClient, requireStorageRoot } from '../src/client.js';
+import { rememberPanel } from '../src/navigation.js';
 
 async function clientModule(t) {
   const root = await temporary(t), output = join(root, 'client.mjs');
-  const result = await build({ entryPoints: [resolve('packages/dsh-media-workflow/src/index.jsx')], bundle: true, write: false, format: 'esm', platform: 'node', target: 'node22' });
+  const result = await build({ entryPoints: [resolve('src/index.jsx')], bundle: true, write: false, format: 'esm', platform: 'node', target: 'node22' });
   await writeFile(output, result.outputFiles[0].text); return import(pathToFileURL(output).href);
 }
 test('界面分段初始化故障逐项清理，单项卸载异常不妨碍其他资源释放', async t => {

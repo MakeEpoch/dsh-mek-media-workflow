@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { makeCanvas } from '../../media-workflow-skill/lib/canvas.mjs';
+import { makeCanvas } from '../embedded-skill/lib/canvas.mjs';
 import { Button, Field } from './ui.jsx';
 
 export function CanvasEditor({ client, task, busy, perform, refresh }) {

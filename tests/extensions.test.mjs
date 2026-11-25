@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { modelJson } from '../packages/media-workflow-skill/lib/generation.mjs';
-import { PostFaroPublisher } from '../packages/media-workflow-skill/lib/publishing.mjs';
-import { digest, json, atomic } from '../packages/media-workflow-skill/lib/common.mjs';
-import { TaskStore } from '../packages/media-workflow-skill/lib/store.mjs';
-import { validateCanvas } from '../packages/media-workflow-skill/lib/canvas.mjs';
-import { rewriteDocumentAssets } from '../packages/media-workflow-skill/lib/document-assets.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { modelJson } from '../embedded-skill/lib/generation.mjs';
+import { PostFaroPublisher } from '../embedded-skill/lib/publishing.mjs';
+import { digest, json, atomic } from '../embedded-skill/lib/common.mjs';
+import { TaskStore } from '../embedded-skill/lib/store.mjs';
+import { validateCanvas } from '../embedded-skill/lib/canvas.mjs';
+import { rewriteDocumentAssets } from '../embedded-skill/lib/document-assets.mjs';
 import { fixtureBrief, publicationFixture, temporary } from './helpers.mjs';
 
 test('实际图像字节通过宿主附件服务进入模型；文本模型不能冒充视觉模型', async t => {

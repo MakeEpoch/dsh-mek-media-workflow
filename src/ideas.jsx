@@ -1,6 +1,6 @@
 // The idea wall uses the plugin's ideas.* RPC and preserves the existing card records.
 import React, { useEffect, useRef, useState } from 'react';
-import { linksInText } from '../../media-workflow-skill/lib/content.mjs';
+import { linksInText } from '../embedded-skill/lib/content.mjs';
 import { AttachmentIcon, Button, Field, WorkChoices } from './ui.jsx';
 
 function editableText(item) {

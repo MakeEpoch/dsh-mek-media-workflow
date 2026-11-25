@@ -1,9 +1,9 @@
 /** Isolated UX preview. Only fictional sample content is generated locally. */
 import { resolve, join } from 'node:path';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
-import { serve } from '../packages/dsh-media-workflow/scripts/dev.mjs';
+import { MediaService } from '../host/service.js';
+import { serve } from './dev.mjs';
 import { fixtureBrief, generationFixture } from '../tests/helpers.mjs';
-import { fail } from '../packages/media-workflow-skill/lib/common.mjs';
+import { fail } from '../embedded-skill/lib/common.mjs';
 
 const root = resolve('artifacts/ux-preview'), service = new MediaService({ root, locationFile: join(root, 'preview-location.json') });
 service.runner.generate = async (kind, payload) => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { CONTENT_TYPES } from '../../media-workflow-skill/lib/content.mjs';
+import { CONTENT_TYPES } from '../embedded-skill/lib/content.mjs';
 
 export function safeLink(value) {
   try {

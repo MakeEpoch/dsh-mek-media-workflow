@@ -1,21 +1,58 @@
 {
-  "name": "media-workflow-workspace",
-  "private": true,
-  "version": "0.2.8",
+  "name": "dsh-mek-media-workflow",
+  "version": "0.2.9",
+  "description": "带工作台、随聊面板、评审和发布核验的 DSH 媒体制作插件",
   "type": "module",
-  "workspaces": [
-    "packages/media-workflow-skill",
-    "packages/dsh-media-workflow"
+  "main": "./dsh/index.js",
+  "exports": {
+    ".": "./dsh/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dsh",
+    "host",
+    "lib",
+    "embedded-media",
+    "embedded-skill",
+    "cordis.patch.yml",
+    "docs"
   ],
+  "engines": {
+    "node": ">=22.16",
+    "dsh": ">=0.2.1-rc.2 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-user-questions"
+      ]
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MakeEpoch/dsh-mek-media-workflow.git"
+  },
   "scripts": {
-    "build": "node packages/dsh-media-workflow/scripts/build.mjs",
+    "build": "node scripts/build.mjs",
+    "build:check": "node scripts/build.mjs --check",
     "pretest": "npm run build",
     "test": "node tests/run.mjs",
     "pretest:browser": "npm run build -- --demo",
     "test:browser": "node tests/browser.mjs",
     "predev": "npm run build -- --demo",
-    "dev": "node packages/dsh-media-workflow/scripts/dev.mjs",
-    "pack:check": "node scripts/check-packages.mjs",
+    "dev": "node scripts/dev.mjs",
+    "pack:check": "npm run build:check && node scripts/check-packages.mjs",
     "pretest:host": "npm run build",
     "test:host": "node scripts/smoke-host.mjs",
     "test:host-browser": "node tests/host-browser.mjs",
@@ -23,6 +60,10 @@
     "smoke:motion": "node scripts/smoke-tools.mjs --motion"
   },
   "devDependencies": {
-    "playwright-core": "1.62.1"
-  }
+    "esbuild": "0.25.12",
+    "playwright-core": "1.62.1",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "license": "MIT"
 }

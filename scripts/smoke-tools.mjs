@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { atomic } from '../packages/media-workflow-skill/lib/common.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { atomic } from '../embedded-skill/lib/common.mjs';
 import { fixtureBrief, generationFixture } from '../tests/helpers.mjs';
 
 const backend = process.argv.includes('--motion') ? 'huashu' : 'ffmpeg';

@@ -1,15 +1,15 @@
-import { validateGeneration } from '../packages/media-workflow-skill/lib/generation.mjs';
+import { validateGeneration } from '../embedded-skill/lib/generation.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { cp, mkdir } from 'node:fs/promises';
 import { temporary, protocolFixture, publishingBrief, fixtureBrief, generationFixture } from './helpers.mjs';
-import { receiptResult } from '../packages/media-workflow-skill/lib/publishing.mjs';
-import { command } from '../packages/media-workflow-skill/lib/process.mjs';
-import { synthesizeVoice, resolveComposition, renderComposition, probe } from '../packages/media-workflow-skill/lib/media.mjs';
-import { validateSettings, normalizeBrief } from '../packages/media-workflow-skill/lib/schema.mjs';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { MediaService } from '../packages/dsh-media-workflow/host/service.js';
+import { receiptResult } from '../embedded-skill/lib/publishing.mjs';
+import { command } from '../embedded-skill/lib/process.mjs';
+import { synthesizeVoice, resolveComposition, renderComposition, probe } from '../embedded-skill/lib/media.mjs';
+import { validateSettings, normalizeBrief } from '../embedded-skill/lib/schema.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { MediaService } from '../host/service.js';
 
 test('原始 PostFaro 嵌套回执保留状态；单纯 completed 不确认发布', () => {
   const response = { ok: true, result: { requestId: 'fixture', status: 'completed', result: { platforms: [{ platform: 'fixture', outcome: { lifecycle: { status: 'published' }, publishEvidence: 'public_url', publicUrl: 'https://example.invalid/real-receipt', fields: { publish: { status: 'applied' } } } }] } } };
@@ -118,7 +118,7 @@ test('成片修改实际改变字幕画面，保留上游，并拒绝旧修改�
   assert.equal(task.state.pendingReview.step, 'render'); assert.equal(task.state.steps.find(s => s.key === 'render').revision, 2); assert.equal(task.state.steps.find(s => s.key === 'voice').revision, 1); assert.equal(task.state.steps.find(s => s.key === 'composition').revision, 1);
   assert.notEqual(task.state.steps.find(s => s.key === 'render').artifacts.find(a => a.name === 'final.mp4').sha256, first);
   assert.equal((await runner.data(id, task, 'render', 'render-project.json')).presentation.captionFontSize, 22);
-  const { json } = await import('../packages/media-workflow-skill/lib/common.mjs'); const old = await json(join(runner.store.taskDir(id), 'requests/render.json'));
+  const { json } = await import('../embedded-skill/lib/common.mjs'); const old = await json(join(runner.store.taskDir(id), 'requests/render.json'));
   runner.generate = undefined; task = await runner.review(id, { reviewId: task.state.pendingReview.id, decision: 'changes', feedback: '再加大一点' }); assert.equal(task.state.status, 'blocked');
   const current = await json(join(runner.store.taskDir(id), 'requests/render.json')); assert.notEqual(current.inputDigest, old.inputDigest);
   await assert.rejects(runner.fulfill(id, 'render', { step: 'render', note: '旧请求', scenes: [], presentation: { captionFontSize: 24 } }, old.inputDigest), { code: 'stale-input' });
@@ -133,7 +133,7 @@ test('不支持的修改明确保留所需输入，画面修改不能注入路�
 function validateEditFixture(value, brief) { return validateGeneration('stage-edit', value, { step: 'render', brief, materials: [], storyboard: { scenes: [{ id: 's', title: '真实标题', materialIds: [], motion: 'hold' }] } }); }
 
 test('发布关修改包装实际应用，保留已通过的成片且只提交一次', { timeout: 120000 }, async t => {
-  const root = await temporary(t), prepared = [], executed = [], { atomic } = await import('../packages/media-workflow-skill/lib/common.mjs');
+  const root = await temporary(t), prepared = [], executed = [], { atomic } = await import('../embedded-skill/lib/common.mjs');
   const publisher = { preflight: async () => ({}), async prepare(args) { prepared.push(args.packaging); const target = args.brief.publish.targets[0], input = { requestId: `fixture-${args.taskId}-${args.runRevision}`, bridgeId: args.brief.publish.bridgeId }, file = join(args.dir, 'fixture.task.json'); await atomic(file, input); return { prepared: [{ target, input, file }], preflight: {} }; }, async execute(item) { executed.push(item.input.requestId); return { status: 'verified', raw: { fixture: true }, url: 'https://example.invalid/fixture' }; } };
   const runner = new WorkflowRunner({ root, adapters: { publisher }, generate: async (kind, payload) => { const value = await generationFixture(kind, payload); if (kind === 'package' && payload.existingPackage) value.targets[0].title = '本关修改后的标题'; return value; } });
   let task = await runner.create(publishingBrief()); const id = task.state.id; task = await runner.start(id, { approveBrief: true });

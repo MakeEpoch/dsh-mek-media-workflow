@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { WorkflowRunner } from '../packages/media-workflow-skill/lib/runner.mjs';
-import { validateGeneration } from '../packages/media-workflow-skill/lib/generation.mjs';
-import { normalizeBrief, briefHash } from '../packages/media-workflow-skill/lib/schema.mjs';
-import { validatePublication, publicationHtml, pngSize } from '../packages/media-workflow-skill/lib/publications.mjs';
+import { WorkflowRunner } from '../embedded-skill/lib/runner.mjs';
+import { validateGeneration } from '../embedded-skill/lib/generation.mjs';
+import { normalizeBrief, briefHash } from '../embedded-skill/lib/schema.mjs';
+import { validatePublication, publicationHtml, pngSize } from '../embedded-skill/lib/publications.mjs';
 import { temporary, fixtureBrief, publicationFixture } from './helpers.mjs';
 
 
