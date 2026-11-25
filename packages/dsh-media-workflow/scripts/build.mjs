@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { mkdir, cp, rm, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, cp, copyFile, rm, writeFile, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
@@ -7,13 +7,15 @@ const require = createRequire(import.meta.url), root = fileURLToPath(new URL('..
 const { build } = require(process.env.DSH_ESBUILD_MODULE || 'esbuild');
 const skill = new URL('../../media-workflow-skill/', import.meta.url), own = JSON.parse(await readFile(new URL('../package.json', import.meta.url))), shared = JSON.parse(await readFile(new URL('package.json', skill)));
 if (own.version !== shared.version) throw new Error('插件与技能包版本必须同步');
+const license = new URL('../../../LICENSE', import.meta.url);
+await Promise.all([copyFile(license, new URL('../LICENSE', import.meta.url)), copyFile(license, new URL('LICENSE', skill))]);
 await rm(new URL('../embedded-skill/', import.meta.url), { recursive: true, force: true });
 await cp(skill, new URL('../embedded-skill/', import.meta.url), { recursive: true, filter: path => !path.includes('/node_modules') });
 await build({
   absWorkingDir: root,
   stdin: { contents: "export * as core from '../media-workflow-skill/lib/index.mjs'; export * as common from '../media-workflow-skill/lib/common.mjs';", resolveDir: root, sourcefile: 'host-runtime-entry.mjs' },
   bundle: true, platform: 'node', format: 'esm', target: ['node22'],
-  outfile: fileURLToPath(new URL('../host/runtime.js', import.meta.url)),
+  outfile: fileURLToPath(new URL('../lib/runtime.js', import.meta.url)),
   // process.mjs resolves the Python adapter relative to its source skill path.
   define: { 'import.meta.url': '__mediaSkillSourceUrl' },
   banner: { js: "// Generated from the shared skill; do not edit.\nconst __mediaSkillSourceUrl = new URL('../embedded-skill/lib/process.mjs', import.meta.url).href;" },

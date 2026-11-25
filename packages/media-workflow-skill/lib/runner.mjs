@@ -4,8 +4,8 @@ import { TaskStore } from './store.mjs';
 import { stepsFor, workType } from './profiles.mjs';
 import { captureBundle, useBundle } from './imports.mjs';
 import { executePublication } from './publications.mjs';
-import { stepOf, normalizeBrief, resolveVoice, briefHash, needsReview } from './schema.mjs';
-import { atomic, json, uuid, now, digest, clone, inside, lock, fail, safeError, isAlive, webUrl, fileDigest, expand } from './common.mjs';
+import { stepOf, normalizeBrief, resolveVoice, voiceOf, briefHash, needsReview } from './schema.mjs';
+import { atomic, json, uuid, now, digest, clone, inside, lock, fail, safeError, isAlive, webUrl, fileDigest, expand, text } from './common.mjs';
 import { makeCanvas, validateCanvas } from './canvas.mjs';
 import { understandMaterials } from './understanding.mjs';
 import { collectSources, materialsMarkdown } from './sources.mjs';
@@ -15,6 +15,7 @@ import { synthesizeVoice, createComposition, finalRender, inspectMedia, resolveC
 import { editProject, editStoryboard } from './edits.mjs';
 import { motionProject, recursiveFiles } from './motion.mjs';
 import { PostFaroPublisher } from './publishing.mjs';
+import { snapshotWriting } from './writing.mjs';
 
 const completed = s => ['complete', 'skipped'].includes(s.status);
 const preserved = s => ({ revision: s.revision, inputDigest: s.inputDigest, artifactDigest: s.artifactDigest, artifacts: clone(s.artifacts), checks: clone(s.checks), reviewId: s.reviewId ?? null, status: s.status });
@@ -42,18 +43,20 @@ export class WorkflowRunner {
     const part = {
       brief: b,
       materials: [b.style, b.sources, b.brand.attribution, ...(b.work ? [b.work] : [])],
-      script: [b.title, b.description, b.audience, b.requirements, b.timezone, b.asOf, b.style, ...(b.creative ? [b.creative] : [])],
+      script: [b.title, b.description, b.audience, b.requirements, b.timezone, b.asOf, b.style, ...(b.creative ? [b.creative] : []), ...(b.writing ? [{ writing: b.writing }] : [])],
       storyboard: [b.output, b.brand, b.style, b.requirements, ...(b.creative ? [b.creative] : [])],
       voice: b.voice, composition: [b.render, b.output, b.brand], qa: [b.style, b.voice.requiredAlignment], render: [b.render, b.output],
       package: [b.title, b.publish.enabled, b.publish.targets, b.asOf, b.timezone, b.style], publish: b.publish,
     }[key];
     return digest([key, part, dependencies, ...(key === 'materials' && task.state.execution.analysisMode ? [[task.state.execution.analysisMode, task.state.execution.mediaPython, task.state.execution.asrModel, task.state.execution.analysisLanguage, task.state.execution.videoFrames, task.state.execution.visionModel]] : []), includeFeedback ? task.state.feedback.filter(f => f.step === key && f.decision === 'changes') : []]);
   }
-  async start(id, { approveBrief = false } = {}) {
+  async start(id, { approveBrief = false, writingStyleId } = {}) {
     await this.update(id, async (state, brief) => {
       this.assertActive(state);
       if (state.status !== 'draft') fail('already-started', '任务已经启动，请恢复当前进度');
-      const valid = normalizeBrief(brief); state.briefHash = briefHash(valid); state.review = clone(valid.review); state.status = 'ready'; state.initialBriefApproved = approveBrief && needsReview(valid, 'brief');
+      const styleId = writingStyleId ?? brief.writingStyleId;
+      const writing = await snapshotWriting(this.store.root, { includeStyle: state.useWorkspaceStyle !== false, styleId });
+      const valid = normalizeBrief({ ...brief, writing, writingStyleId: styleId }); state.briefHash = briefHash(valid); state.review = clone(valid.review); state.status = 'ready'; state.initialBriefApproved = approveBrief && needsReview(valid, 'brief');
       await atomic(join(this.store.taskDir(id), 'brief.json'), valid); await atomic(join(this.store.taskDir(id), 'requirements', `${state.runRevision}.json`), valid);
     });
     return this.continue(id);
@@ -156,13 +159,28 @@ export class WorkflowRunner {
     }, { waitMs: 100 });
     return this.continue(id);
   }
-  async revise(id, input, { newRequirement = false } = {}) {
+  async revise(id, input, { newRequirement = false, refreshWriting = false } = {}) {
     if (this.active.has(id)) fail('busy', '请先暂停任务再修改需求');
-    const next = resolveVoice(normalizeBrief(input), (await this.store.settings()).value);
+    const settings = (await this.store.settings()).value;
     await this.update(id, async (state, previous) => {
       this.assertActive(state);
       if (state.status !== 'draft' && !newRequirement) fail('new-requirement-required', '运行中的需求修改需明确重新提交需求');
       if (state.receipts.some(r => ['submitted', 'needs_check', 'waiting_for_login', 'filled'].includes(r.status))) fail('publish-check-required', '请先核查当前发布尝试再提交新需求');
+      const isBrief = input && typeof input === 'object' && !Array.isArray(input);
+      const styleId = isBrief && Object.hasOwn(input, 'writingStyleId')
+        ? text(input.writingStyleId, '创作风格', { max: 128 })
+        : refreshWriting ? '' : previous.writingStyleId;
+      const styleChanged = (styleId || '') !== (previous.writingStyleId || '');
+      const writing = refreshWriting || styleChanged || state.status === 'draft'
+        ? await snapshotWriting(this.store.root, {
+          includeStyle: refreshWriting || styleChanged || state.useWorkspaceStyle !== false,
+          styleId,
+          rules: !refreshWriting && state.status !== 'draft' ? previous.writing?.rules ?? [] : undefined,
+        })
+        : previous.writing;
+      const brief = isBrief ? { ...input, writing, writingStyleId: styleId } : input;
+      const next = resolveVoice(normalizeBrief(brief), settings);
+      if (refreshWriting || styleChanged) delete state.useWorkspaceStyle;
       if (workType(previous) !== workType(next)) fail('type-change-requires-task', '作品类型改变需要新建任务，以保留原流程和产物版本');
       state.runRevision++; state.title = next.title; state.style = next.style; state.review = clone(next.review); state.briefHash = briefHash(next); state.initialBriefApproved = needsReview(next, 'brief');
       const changed = stepsFor(next).filter(s => { if (s.key === 'brief') return true; const snapshot = { state, brief: next }; return state.steps.find(x => x.key === s.key).inputDigest && this.inputDigest(snapshot, s.key) !== state.steps.find(x => x.key === s.key).inputDigest; }).map(s => s.key);
@@ -187,6 +205,10 @@ export class WorkflowRunner {
   async generated(id, task, key, kind, payload, signal) {
     const inputDigest = this.inputDigest(task, key), manual = await json(join(this.store.taskDir(id), 'inputs', `${key}.json`), null);
     const guidance = stageGuidance(kind, payload);
+    if (payload.brief?.writing && !guidance?.writing) {
+      const { writing, ...brief } = payload.brief;
+      payload = { ...payload, brief };
+    }
     await atomic(join(this.store.taskDir(id), 'requests', `${key}.json`), { schemaVersion: 1, taskId: id, step: key, kind, inputDigest, schema: SHAPES[kind], guidance, payload, createdAt: now() });
     if (manual?.inputDigest === inputDigest && (!manual.kind || manual.kind === kind)) return validateGeneration(kind, manual.response, payload);
     if (!this.generate) fail('generation-required', '当前阶段需要内容生成。请由当前 harness 读取 requests 中的请求并导入结果，或配置 DSH 模型');
@@ -248,7 +270,8 @@ export class WorkflowRunner {
         if (manual?.inputDigest === inputDigest) alignment = manual.response;
         else fail('alignment-required', '请用实际对齐工具处理原录音，并按 voice 阶段请求导入时间轴；不能按字数伪造');
       }
-      return { files: [...new Set([...await synthesizeVoice(effective, script, storyboard, materials, dir, settings, signal, onProcess, alignment), ...(edit ? ['stage-edit.json'] : [])])], checks: edit ? [{ id: 'revision-applied', label: '本版参数修改', status: 'pass', severity: 'info', detail: edit.note }] : [] };
+      const voiceSettings = effective.voice.mode === 'tts' && voiceOf(effective, settings).provider === 'mimo' ? await this.store.mimoSettings(settings) : settings;
+      return { files: [...new Set([...await synthesizeVoice(effective, script, storyboard, materials, dir, voiceSettings, signal, onProcess, alignment), ...(edit ? ['stage-edit.json'] : [])])], checks: edit ? [{ id: 'revision-applied', label: '本版参数修改', status: 'pass', severity: 'info', detail: edit.note }] : [] };
     }
     const voice = { timeline: this.artifact(id, task, 'voice', 'timeline.json').absolutePath, captions: this.artifact(id, task, 'voice', 'captions.srt').absolutePath, audio: task.state.steps.find(s => s.key === 'voice').artifacts.some(a => a.name === 'voiceover.wav') ? this.artifact(id, task, 'voice', 'voiceover.wav').absolutePath : null };
     if (key === 'composition') {
@@ -278,7 +301,7 @@ export class WorkflowRunner {
     if (step.key === 'brief' && state.initialBriefApproved) { await atomic(join(this.store.taskDir(id), 'review', `${review.id}.json`), { ...review, decision: 'approve', actor: 'user', source: 'initial-requirement-submit', decidedAt: now() }); step.reviewId = review.id; step.reviewRunRevision = state.runRevision; state.initialBriefApproved = false; return; }
     state.pendingReview = review; step.status = 'needs_review'; state.status = 'needs_review';
   }
-  async run(id) {
+  async run(id, { onlyIfReady = false } = {}) {
     if (this.active.has(id)) return this.active.get(id).promise;
     const controller = new AbortController(), active = { controller, publishing: false, process: null, promise: null };
     this.active.set(id, active);
@@ -287,6 +310,7 @@ export class WorkflowRunner {
     active.promise = lock(join(this.store.taskDir(id), 'run.lock'), async () => {
       try {
         let task = await this.store.read(id);
+        if (onlyIfReady && (task.state.status !== 'ready' || task.state.archivedAt)) return task;
         this.assertActive(task.state);
         if (task.state.pendingReview || task.state.pauseRequested || task.state.status === 'needs_check') return task;
         if (briefHash(normalizeBrief(task.brief)) !== task.state.briefHash) fail('external-brief-edit', '需求文件被外部修改，请通过重新提交需求登记新版本');

@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { join, resolve } from 'node:path';
 import { temporary } from './helpers.mjs';
 import { createClient, requireStorageRoot } from '../packages/dsh-media-workflow/src/client.js';
+import { rememberPanel } from '../packages/dsh-media-workflow/src/navigation.js';
 
 async function clientModule(t) {
   const root = await temporary(t), output = join(root, 'client.mjs');
@@ -42,9 +43,50 @@ test('其他窗口切换目录后清除旧任务选择，后续写入使用新�
   await client.call('settings.get'); client.select('old-task'); client.navigate('workbench');
   root = '/fixture/new'; rejectOld = true;
   await assert.rejects(client.call('settings.save', { revision: 0, value: {} }), { code: 'workspace-changed' });
-  assert.equal(client.getSelected(), null); assert.equal(client.getPage(), null);
+  assert.equal(client.getSelected(), null); assert.equal(client.getWorkspaceView(), null);
   await client.call('settings.get'); await client.call('tasks.create', { brief: {} });
   assert.equal(lastPayload.storageRoot, root); client.dispose();
+});
+test('主面板只恢复当前标签页上同一会话的选择，已有主面板优先', t => {
+  const values = new Map();
+  const location = new URL('https://example.test/dsh/?session=original');
+  const storage = {
+    getItem: key => values.get(key),
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+  for (const [key, value] of [['location', location], ['sessionStorage', storage]]) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { value, configurable: true });
+    t.after(() => { if (previous) Object.defineProperty(globalThis, key, previous); else delete globalThis[key]; });
+  }
+  const layout = (initial = null) => {
+    let activePanelId = initial, listeners = new Set();
+    return {
+      panelInfo: {
+        getSnapshot: () => ({ activePanelId }),
+        subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); },
+      },
+      selectPanel: panel => { activePanelId = panel; for (const listener of listeners) listener(); },
+    };
+  };
+  const first = layout();
+  const stop = rememberPanel(first, 'media-workflow');
+  first.selectPanel('media-workflow');
+  stop();
+  const refreshed = layout();
+  const stopRefreshed = rememberPanel(refreshed, 'media-workflow');
+  assert.equal(refreshed.panelInfo.getSnapshot().activePanelId, 'media-workflow');
+  stopRefreshed();
+  const bot = layout('mek-bot');
+  rememberPanel(bot, 'media-workflow')();
+  assert.equal(bot.panelInfo.getSnapshot().activePanelId, 'mek-bot');
+  first.selectPanel('media-workflow');
+  rememberPanel(first, 'media-workflow')();
+  location.searchParams.set('session', 'other');
+  const linked = layout();
+  rememberPanel(linked, 'media-workflow')();
+  assert.equal(linked.panelInfo.getSnapshot().activePanelId, null);
 });
 test('目录服务缺少 root 时报告未就绪，不产生原始属性访问错误或猜测目录', () => {
   for (const value of [undefined, {}, { storage: {} }, { storage: { root: '' } }]) assert.throws(() => requireStorageRoot(value), { code: 'host-not-ready' });

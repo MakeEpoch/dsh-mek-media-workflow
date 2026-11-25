@@ -1,7 +1,7 @@
 {
   "name": "media-workflow-workspace",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.8",
   "type": "module",
   "workspaces": [
     "packages/media-workflow-skill",
@@ -9,10 +9,14 @@
   ],
   "scripts": {
     "build": "node packages/dsh-media-workflow/scripts/build.mjs",
+    "pretest": "npm run build",
     "test": "node tests/run.mjs",
+    "pretest:browser": "npm run build -- --demo",
     "test:browser": "node tests/browser.mjs",
+    "predev": "npm run build -- --demo",
     "dev": "node packages/dsh-media-workflow/scripts/dev.mjs",
     "pack:check": "node scripts/check-packages.mjs",
+    "pretest:host": "npm run build",
     "test:host": "node scripts/smoke-host.mjs",
     "test:host-browser": "node tests/host-browser.mjs",
     "smoke:tts": "node scripts/smoke-tools.mjs --tts",

@@ -21,6 +21,7 @@ try {
   const title = `DSH 宿主回归（虚构资料） ${Date.now()}`;
   const created = await rpc('tasks.create', { brief: fixtureBrief({ title, output: { width: 640, height: 360, fps: 24, durationSeconds: 2 } }) }), id = created.state.id;
   await page.getByRole('button', { name: '媒体工作台', exact: true }).click();
+  await page.getByRole('navigation', { name: '媒体工作流导航' }).getByRole('button', { name: '任务', exact: true }).click();
   await page.getByRole('heading', { name: '制作任务', exact: true }).waitFor();
   await page.locator('.mw-task').filter({ hasText: title }).getByRole('button', { name: /编辑需求|查看评审|查看进度|查看成片|继续制作|处理问题/ }).click();
   await page.getByRole('button', { name: '确认需求并开始', exact: true }).click();
@@ -38,6 +39,7 @@ try {
   await rpc('stage.complete', { id, step: 'render', inputDigest: editRequest.inputDigest, response: { step: 'render', note: '按意见放大字幕到24', scenes: [], presentation: { captionFontSize: 24 } } });
   await page.getByRole('heading', { name: '正式渲染 v2 需要评审', exact: true }).waitFor({ timeout: 30000 });
   const revised = await rpc('tasks.get', { id }); assert.equal(revised.state.steps.find(s => s.key === 'composition').revision, 1); assert.equal(revised.state.steps.find(s => s.key === 'voice').revision, 1);
+  await page.getByRole('button', { name: '查看评审产物', exact: true }).click();
   await page.getByRole('button', { name: /stage-edit.json/ }).click(); await page.getByRole('heading', { name: '本版修改', exact: true }).waitFor();
   await page.getByRole('button', { name: /final.mp4/ }).click(); await page.waitForFunction(() => document.querySelector('.mw video')?.readyState >= 1);
   await page.screenshot({ path: new URL('../artifacts/dsh-host-workbench.png', import.meta.url).pathname, fullPage: true });

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
-import { MediaService } from '../host/service.js';
+import { MediaService, TASK_EXPORT_SCHEMA } from '../host/service.js';
 import { common, core, coreBase } from '../host/core.js';
 
 export const name = 'dsh-media-workflow';
@@ -75,8 +75,32 @@ export function registerRpc(ctx, service) {
       catch (error) { return Response.json({ ok: false, error: { code: error.code, message: common.safeError(error) } }, { status: 400 }); }
     } }));
     disposers.push(ctx.connection.fetch.register({ path: `/api/${ENDPOINT}/export`, methods: ['GET'], requestBody: 'buffered', async fetch(request) {
-      try { const url = new URL(request.url), key = common.safeId(url.searchParams.get('id')), record = await common.json(join(service.store.root, 'exports', `${key}.json`)); const path = join(service.store.root, 'exports', `${key}.tar.gz`); return new Response(Readable.toWeb(createReadStream(path)), { headers: { 'content-type': 'application/gzip', 'content-length': String(record.size), 'cache-control': 'private, no-store', 'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(record.name)}` } }); }
+      try {
+        const url = new URL(request.url), key = common.safeId(url.searchParams.get('id')), root = service.store.root;
+        const record = await common.json(join(root, 'exports', `${key}.json`));
+        if (record.schemaVersion !== TASK_EXPORT_SCHEMA) return new Response('旧版导出无法确认已过滤凭据，请重新导出任务。', { status: 410, headers: { 'cache-control': 'private, no-store' } });
+        const path = join(root, 'exports', `${key}.tar.gz`);
+        return new Response(Readable.toWeb(createReadStream(path)), { headers: { 'content-type': 'application/gzip', 'content-length': String(record.size), 'cache-control': 'private, no-store', 'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(record.name)}` } });
+      }
       catch { return new Response('Export not found', { status: 404 }); }
+    } }));
+    // 灵感墙媒体：上传与播放都走同源鉴权路由，文件只存在插件数据根 ideas-media/。
+    disposers.push(ctx.connection.fetch.register({ path: `/api/${ENDPOINT}/idea-upload`, methods: ['POST'], requestBody: 'streaming', async fetch(request) {
+      try {
+        const url = new URL(request.url), bytes = await boundedBody(request, 44 * 1024 * 1024);
+        const value = await service.ideas.saveMedia({ name: url.searchParams.get('name'), mime: url.searchParams.get('mime') || '', base64: bytes.toString('base64') });
+        return Response.json({ ok: true, value });
+      } catch (error) { return Response.json({ ok: false, error: { code: error.code || 'upload-failed', message: common.safeError(error) } }, { status: 400 }); }
+    } }));
+    disposers.push(ctx.connection.fetch.register({ path: `/api/${ENDPOINT}/idea-media`, methods: ['GET'], requestBody: 'buffered', async fetch(request) {
+      try {
+        const asset = await service.ideas.media(new URL(request.url).searchParams.get('src'));
+        const range = request.headers.get('range'); let start = 0, end = asset.size - 1;
+        if (range) { const match = /^bytes=(\d*)-(\d*)$/.exec(range); if (!match || (!match[1] && !match[2])) return new Response(null, { status: 416 }); if (!match[1]) start = Math.max(0, asset.size - Number(match[2])); else { start = Number(match[1]); end = match[2] ? Math.min(Number(match[2]), end) : end; } if (start > end || start >= asset.size) return new Response(null, { status: 416, headers: { 'content-range': `bytes */${asset.size}` } }); }
+        const headers = { 'content-type': asset.mime, 'accept-ranges': 'bytes', 'content-length': String(Math.max(0, end - start + 1)), 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=3600' };
+        if (range) headers['content-range'] = `bytes ${start}-${end}/${asset.size}`;
+        return new Response(asset.size ? Readable.toWeb(createReadStream(asset.file, { start, end })) : null, { status: range ? 206 : 200, headers });
+      } catch (error) { return new Response(common.safeError(error), { status: error.code === 'not-found' || error.code === 'ENOENT' ? 404 : 400 }); }
     } }));
     return stop;
   } catch (error) { void stop(); throw error; }

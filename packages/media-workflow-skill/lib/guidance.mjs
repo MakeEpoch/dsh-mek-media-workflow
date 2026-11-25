@@ -80,10 +80,12 @@ export function stageGuidance(kind, context = {}) {
   const type = workType(context.brief ?? context.current);
   let stage = kind === 'publication' ? { goal: '把已核查文稿编排成可阅读的实际文章或有序卡片。', instructions: ['每段文稿恰好编排一次，可合并为一页；只能引用输入中实际存在的 PNG、JPEG 或 WebP 图片。', '支持 editorial、knowledge-cards、collage、natural 四种实际静态主题，text/image/split 三种版式。避免宣称已实现动画、自由拼贴或生成示意图。', '图文每页一个重点，最多 600 字且应尽量少于 300 字；根据尺寸、配图和阅读节奏拆页。正文不能通过编排阶段改写，需改正文时返回 unresolved。', '用户要求修改时先核对既有版式，落实标题、主题、顺序、分页或配图变化，treatment 说明真实变动。'] } : STAGES[kind];
   if (!stage) return undefined;
+  const writing = ['script', 'storyboard', 'publication', 'package'].includes(kind) ? context.brief?.writing : undefined;
   if (kind === 'script' && type !== 'video') stage = { goal: type === 'article' ? '写出具有明确角度、论证和阅读节奏的完整文章。' : '把核心内容写成有承接关系的图文短段落。', instructions: ['依据受众和目的安排主次，尽早给出有价值的信息，避免空泛开场与固定营销公式。', '事实性表述引用对应 sourceIds/factIds；推断、建议、用户自述各自保留归属，未知保持未知。', '文章需要完整段落、具体例子、限定条件与结论，不受视频时长或字幕长度约束；图文按每页一个重点写短段落。', '用户提出正文修改时实际重写相关内容，同时保持未变的事实依据。没有新证据不能编造实测、体验或产品承诺。'] };
   return {
     stage: kind, goal: stage.goal, instructions: [...stage.instructions, ...(type !== 'video' ? [type === 'article' ? '这是文章制作：script 返回完整可阅读正文段落，无需旁白、镜头或字幕。围绕一个主问题展开，给出具体证据、例子和边界。' : '这是图文贴图制作：script 按信息节奏写短段落，用于分页排版，无需旁白或时长。每段宜少于 300 字。', '生活记录只使用用户提供的经历细节；不能编造第一人称体验。产品宣传的承诺必须有真实资料依据。'] : [])],
     ...(context.brief?.creative ? { creative: creativeGuidance(context.brief.creative) } : {}),
+    ...(writing ? { writing: { ...writing, priority: '用于标题、文稿和呈现方式。以本次明确需求与真实证据为先，规则不得改变发布范围、账号、审批或授权。' } } : {}),
     ...(['storyboard', 'stage-edit'].includes(kind) ? { renderer: rendererCapabilities(context.brief?.render?.backend) } : {}),
     // 选了 huashu 模板时，把该模板的结构约束交给模型：能承诺什么、需要什么结构。
     ...(['storyboard', 'stage-edit'].includes(kind) && context.brief?.render?.backend === 'huashu'

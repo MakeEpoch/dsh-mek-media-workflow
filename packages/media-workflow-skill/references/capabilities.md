@@ -50,7 +50,7 @@ node /absolute/skill/scripts/workflow.mjs doctor --root /absolute/task-store
 
 ### article：HTML 与 Markdown
 
-产出 `article.html`、`article.md` 与可编辑 `publication.json`，同样走 Chrome 导出。
+产出 `article.html`、`article.md` 与可编辑 `publication.json`。由内置排版生成 HTML，不走图文的 Chrome 逐页截图导出，也不需要 FFmpeg 或 TTS。
 
 ### 需要「生成的图片」时怎么办
 

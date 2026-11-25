@@ -14,3 +14,4 @@ await import('./publications.test.mjs');
 await import('./extensions.test.mjs');
 
 await import('./time.test.mjs');
+await import('./media-workflow.test.mjs');

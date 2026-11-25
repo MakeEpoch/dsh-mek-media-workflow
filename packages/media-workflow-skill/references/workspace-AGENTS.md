@@ -56,14 +56,19 @@ mw status TASK   # TASK 替换为实际任务 ID
 本目录/
 ├── AGENTS.md                  本引导，可按用户约定补充
 ├── settings.json              全局设置，可能含凭据，不原样输出或提交
-├── doctor.json / dsh.patch     本地依赖与诊断结果
+├── doctor.json / dsh.patch     本地诊断快照，不是宿主配置
+├── ideas.json / ideas-media/   灵感卡和附件
+├── styles.json                 写作风格库与工作区默认风格
+├── metrics.json / rules.json   复盘数据及已确认规则
+├── skills/                     导出的写作 Skill 文件，不会自动安装
 ├── tasks/<taskId>/
-│   ├── brief.json             当前需求
-│   ├── state.json             执行状态、当前产物索引与历史
+│   ├── brief.json             当前需求与写作快照
+│   ├── state.json             执行状态、非凭据配置快照、产物索引与历史；历史原文件可能仍含旧凭据，不原样分享
 │   ├── requirements/<版本>.json  历次正式提交的需求
 │   ├── uploads/               上传的原始素材
 │   ├── transfers/             分片上传数据与恢复记录
 │   ├── imports/               外部制作交付的导入快照
+│   ├── analysis-cache/        分析缓存，按素材与工具配置区分
 │   ├── requests/              需当前对话完成的阶段请求
 │   ├── inputs/                导入的阶段响应、画布编辑等
 │   ├── working/<阶段>-<UUID>/  执行中的文件；失败时可能保留

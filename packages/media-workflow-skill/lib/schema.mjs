@@ -2,6 +2,7 @@ import { stepsFor, workType } from './profiles.mjs';
 import workflow from '../workflow.json' with { type: 'json' };
 import { text, fail, now, clone, webUrl, digest } from './common.mjs';
 import { DEFAULT_TEMPLATE, TEMPLATE_IDS, huashuTemplate, sanitizeTemplateVariables } from './templates.mjs';
+import { normalizeWriting } from './writing.mjs';
 
 export { workflow };
 export const STEPS = workflow.steps;
@@ -76,10 +77,14 @@ export function normalizeBrief(input, { draft = false } = {}) {
   const width = number(Number(input.output?.width ?? (type === 'article' ? 780 : type === 'image-post' ? 1080 : 1920)), 160, 3840, '画面宽度');
   const height = number(Number(input.output?.height ?? (type === 'image-post' ? 1440 : 1080)), 160, 3840, '画面高度');
   if (width % 2 || height % 2) fail('invalid-input', '视频宽高需要为偶数');
+  const writing = normalizeWriting(input.writing);
+  const writingStyleId = text(input.writingStyleId, '创作风格', { max: 128 });
   const brief = {
     schemaVersion: 1, ...(input.work ? { work: { type } } : {}), title: text(input.title, '任务名称', { required: !draft, max: 200 }),
     description: text(input.description, '制作需求', { required: !draft, max: 30000 }), style,
     audience: text(input.audience, '受众', { max: 2000 }), requirements: text(input.requirements, '验收与限制', { max: 10000 }),
+    ...(writing ? { writing } : {}),
+    ...(writingStyleId ? { writingStyleId } : {}),
     ...(input.creative ? { creative: {
       expression: text(input.creative.expression || 'auto', '表达方式', { max: 200 }),
       visualStyle: text(input.creative.visualStyle || 'auto', '视觉风格', { max: 200 }),

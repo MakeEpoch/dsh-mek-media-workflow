@@ -1,8 +1,9 @@
-import { readFile, readdir, mkdir, realpath, access } from 'node:fs/promises';
+import { readFile, readdir, mkdir, mkdtemp, rename, rm, realpath, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { join, isAbsolute } from 'node:path';
+import { extname, join, isAbsolute } from 'node:path';
 import { core, common } from './core.js';
 
+export const TASK_EXPORT_SCHEMA = 1;
 export class MediaService {
   constructor({ ctx, root, adapters = {}, locationFile, onRootChange } = {}) {
     this.ctx = ctx; this.store = new core.TaskStore(root); this.native = new Map(); this.disposed = false; this.lifecycle = new AbortController();
@@ -10,6 +11,9 @@ export class MediaService {
     this.runner = this.makeRunner();
     this.operations = new Map();
   }
+  get ideas() { return new core.IdeaStore(this.store.root); }
+  get styles() { return new core.StyleStore(this.store.root); }
+  get rules() { return new core.RuleStore(this.store.root); }
   makeRunner() { return new core.WorkflowRunner({ store: this.store, adapters: this.adapters, autoRun: false, generate: this.ctx?.get?.('llm') ? (kind, payload, settings, signal) => {
     if (!settings.provider && !settings.model && !(kind === 'visual-analysis' && settings.visionModel)) common.fail('generation-required', '本任务由当前对话制作；请让对话助手读取本阶段请求并导入结果。全局模型设置只影响新任务。');
     return core.modelJson(this.ctx.get('llm'), settings, kind, payload, signal, { attachments: this.ctx.get('attachments') });
@@ -61,17 +65,107 @@ export class MediaService {
     const key = String(value.mimoApiKey || '');
     return { revision, value: { ...value, mimoApiKey: '', mimoApiKeySet: !!key, mimoApiKeyHint: key ? `••••${key.slice(-4)}` : '' } };
   }
-  async settings() { const stored = await this.store.settings(); return { ...this.present(stored), storage: { root: this.store.root, tasks: join(this.store.root, 'tasks') }, workflow: core.workflow, doctor: await common.json(join(this.store.root, 'doctor.json'), null) }; }
+  async settings() { const stored = await this.store.settings(); const doctor = common.redactJson(await common.json(join(this.store.root, 'doctor.json'), null), stored.value.mimoApiKey); return { ...this.present(stored), storage: { root: this.store.root, tasks: join(this.store.root, 'tasks') }, workflow: core.workflow, doctor }; }
   async models() {
     const llm = this.ctx?.get?.('llm');
     return { providers: await Promise.all((llm?.listProviders?.() ?? []).map(async p => { try { return { id: p.id, name: p.name || p.id, models: (await llm.listModels(p.id)).map(m => ({ id: m.id ?? String(m), name: m.name ?? m.id ?? String(m) })) }; } catch { return { id: p.id, name: p.name || p.id, models: [], unavailable: true }; } })) };
   }
-  async create(p) { const task = await this.runner.create(p.brief, { draft: p.draft === true, sessionId: p.sessionId || null }); return task; }
+  async create(p, options = {}) {
+    return this.runner.create(p.brief, { draft: p.draft === true, sessionId: p.sessionId || null, useWorkspaceStyle: p.applyStyle !== false, ...options });
+  }
+  async startIdeaWork(ideaId, type, { request = '', visualStyle = 'auto', writingStyleId } = {}) {
+    if (this.disposed) common.fail('disposed', '插件已停止');
+    const articleId = typeof ideaId === 'string' && /^idea_([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/.exec(ideaId)?.[1];
+    if (!articleId) common.fail('invalid-id', '灵感标识无效');
+    const labels = { article: '文章', 'image-post': '图文', video: '视频' };
+    if (typeof type !== 'string' || !Object.hasOwn(labels, type)) common.fail('invalid-input', '请选择文章、图文或视频');
+    if (!core.contentCapabilities().visualStyles.some(row => row.id === visualStyle)) common.fail('invalid-input', '视觉风格无效');
+    request = common.text(request, '制作说明', { max: 30000 });
+    if (writingStyleId !== undefined) writingStyleId = common.text(writingStyleId, '创作风格', { max: 128 });
+    const id = type === 'article' ? articleId : common.digest([ideaId, type]).replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/, '$1-$2-$3-$4-$5');
+    const operation = `idea-work:${id}`, pending = this.operations.get(operation);
+    if (pending) return pending;
+    const promise = common.lock(join(this.store.root, 'idea-articles', `${id}.lock`), async () => {
+      let task = await this.store.read(id).catch(error => { if (error.code !== 'not-found') throw error; return null; });
+      if (task && (task.state.ideaId !== ideaId || core.workType(task) !== type)) common.fail('conflict', '此任务标识已被占用');
+      if (!task) {
+        const ideas = this.ideas;
+        const idea = (await ideas.read()).items.find(row => row.id === ideaId);
+        if (!idea) common.fail('not-found', '灵感不存在或已删除');
+        const title = idea.title.trim().slice(0, 200) || idea.body.trim().slice(0, 80) || `灵感${labels[type]}`;
+        const attribution = idea.source.slice(0, 2000) || '用户记录的灵感';
+        const repeatsTitle = idea.body.split(/\r?\n/, 1)[0] === idea.title || idea.title.endsWith('…') && idea.body.startsWith(idea.title.slice(0, -1));
+        const titleAsSource = idea.title !== idea.url && !repeatsTitle ? idea.title : '';
+        const body = [titleAsSource, idea.body].filter(Boolean).join('\n\n').trim();
+        const sources = [];
+        if (body) sources.push({ id: 'idea-text', name: '灵感原文', text: body, attribution });
+        const links = [...new Set([...(idea.url ? [common.webUrl(idea.url)] : []), ...core.linksInText(`${body}\n${request}`)])];
+        for (const [index, url] of links.entries()) sources.push({ id: index ? `idea-link-${index}` : 'idea-link', name: '灵感附带链接', url, attribution });
+        let attachment;
+        if (idea.media?.src) {
+          const media = await ideas.media(idea.media.src);
+          const path = common.inside(await realpath(this.store.root), common.inside(await realpath(ideas.mediaDir), await realpath(media.file)));
+          await common.regular(path, 40 * 1024 * 1024);
+          attachment = { path, name: `idea-attachment${extname(media.file)}`, role: media.mime.startsWith('image/') ? 'image' : 'video', attribution };
+        }
+        if (!sources.length && !attachment) common.fail('invalid-idea', '请先为灵感补充文字、链接或附件');
+        let brief = { title, description: request || `围绕「${title}」制作${labels[type]}，依据提供的灵感与资料展开。`, work: { type }, style: 'original', creative: { visualStyle }, writingStyleId, review: { mode: 'gates' }, sources, publish: { enabled: false } };
+        if (type === 'video') {
+          brief.voice = { voice: (await this.store.settings()).value.defaultVoice };
+          brief.output = { width: 1080, height: 1920 };
+        }
+        if (request) brief = await this.parseBrief({ text: request, current: brief, quick: true, autoOutput: type === 'video' });
+        task = await this.create({ brief }, { id, ideaId, attachment });
+      }
+      if (task.state.archivedAt) return { id };
+      if (task.state.status === 'draft') task = await this.runner.start(id, { approveBrief: true, writingStyleId });
+      if (task.state.status === 'ready') this.background(id, () => this.runner.run(id, { onlyIfReady: true }));
+      return { id };
+    }, { signal: this.lifecycle.signal }).finally(() => this.operations.delete(operation));
+    this.operations.set(operation, promise);
+    return promise;
+  }
   async parseBrief(p) {
     const settings = (await this.store.settings()).value;
     const current = core.normalizeBrief(p.current, { draft: true });
-    const result = await core.modelJson(this.ctx?.get?.('llm'), settings, 'brief', { request: p.text, current, instruction: '仅整理当前用户需求。沿用已有真实素材；不要生成来源链接或平台账号。未明确指定时推荐标准评审。发布授权原文必须准确引用用户输入，不能推断。' });
+    const { writing, ...currentBrief } = current;
+    const llm = this.ctx?.get?.('llm');
+    if (p.quick === true) {
+      const request = common.text(p.text, '制作说明', { max: 30000 });
+      if (!request || !settings.provider || !settings.model || !llm?.prepareCall) return current;
+      const result = await core.modelJson(llm, settings, 'brief', {
+        request, current: currentBrief,
+        instruction: `只整理本次说明中明确的重点、受众、语气、表达方式和简短标题。${p.autoOutput === true ? '仅当说明明确指定视频横竖方向或时长时，填写 output 中相应字段；横竖版分别用 1920×1080、1080×1920。' : ''}作品类型、视觉风格、资料、评审方式、发布范围和授权由现有设置决定。`,
+      }, this.lifecycle.signal).catch(error => {
+        this.lifecycle.signal.throwIfAborted();
+        this.ctx?.logger?.warn?.(`[media-workflow] 整理需求：${common.safeError(error)}`);
+        return null;
+      });
+      if (!result) return current;
+      const take = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+      const output = { ...current.output };
+      if (p.autoOutput === true && core.workType(current) === 'video') {
+        const { width, height, durationSeconds } = result.output ?? {};
+        if (width === 1080 && height === 1920 || width === 1920 && height === 1080) Object.assign(output, { width, height });
+        if (Number.isFinite(durationSeconds) && durationSeconds >= 1 && durationSeconds <= 3600) output.durationSeconds = durationSeconds;
+      }
+      return core.normalizeBrief({
+        ...current,
+        output,
+        title: (p.autoTitle === true && take(result.title, 200)) || current.title,
+        audience: current.audience || take(result.audience, 2000),
+        requirements: current.requirements || take(result.requirements, 10000),
+        creative: {
+          ...current.creative,
+          expression: current.creative?.expression === 'auto' ? take(result.creative?.expression, 200) || 'auto' : current.creative?.expression,
+          tone: current.creative?.tone || take(result.creative?.tone, 2000),
+          reference: current.creative?.reference || take(result.creative?.reference, 4000),
+        },
+      }, { draft: true });
+    }
+    const result = await core.modelJson(llm, settings, 'brief', { request: p.text, current: currentBrief, instruction: '仅整理当前用户需求。沿用已有真实素材；不要生成来源链接或平台账号。未明确指定时推荐标准评审。发布授权原文必须准确引用用户输入，不能推断。' });
     const merged = { ...current, ...result }; for (const group of ['review', 'voice', 'render', 'output', 'brand', 'publish']) merged[group] = { ...current[group], ...result[group] };
+    merged.writing = writing;
     if (current.creative || result.creative) merged.creative = { ...current.creative, ...result.creative };
     const next = core.normalizeBrief(merged, { draft: true });
     if (next.review.mode === 'none' && current.review.mode !== 'none' && (!result.review?.statement?.trim() || !p.text.includes(result.review.statement))) common.fail('unsupported-review', '免阶段评审必须来自本次需求的明确原话，或由你在表单中选择');
@@ -117,17 +211,25 @@ export class MediaService {
       }).catch(() => { /* Native answerer may be absent; the same pending review stays in the workbench. */ }).finally(() => { this.native.delete(review.id); });
     } catch (e) { this.ctx?.logger?.warn?.(`[media-workflow] 评审同步：${common.safeError(e)}`); }
   }
-  async checks(p = {}) { const task = p.id ? await this.store.read(p.id) : null; const report = await core.doctor(task?.state.execution ?? (await this.store.settings()).value, { brief: task?.brief, signal: this.lifecycle.signal }); await common.atomic(join(this.store.root, 'doctor.json'), report); await common.atomic(join(this.store.root, 'dsh.patch'), { kind: 'media-workflow-diagnostics', schemaVersion: 1, ...report }); return report; }
+  async checks(p = {}) { const task = p.id ? await this.store.read(p.id) : null; const settings = task ? await this.store.mimoSettings(task.state.execution) : (await this.store.settings()).value; const report = await core.doctor(settings, { brief: task?.brief, signal: this.lifecycle.signal }); await common.atomic(join(this.store.root, 'doctor.json'), report); await common.atomic(join(this.store.root, 'dsh.patch'), { kind: 'media-workflow-diagnostics', schemaVersion: 1, ...report }); return report; }
   async textArtifact(p) { const a = await this.store.artifact(p.id, p.path); if (!/^(text\/|application\/json)/.test(a.mime)) common.fail('not-text', '该产物需要媒体预览'); if (a.size > 2 * 1024 * 1024) common.fail('preview-too-large', '正文过大，请导出文件查看'); return { ...a, path: p.path, text: await readFile(a.path, 'utf8') }; }
   async request(p) { const task = await this.store.read(p.id); const key = p.step || task.state.error?.details?.step || task.state.activeStep; core.stepsFor(task).find(s => s.key === key) || common.fail('invalid-step', '阶段不存在'); return common.json(join(this.store.taskDir(p.id), 'requests', `${key}.json`), null); }
   async exportTask(id) {
-    const task = await this.store.read(id);
-    if (this.runner.active.has(id) || ['running', 'publishing', 'pausing'].includes(task.state.status)) common.fail('task-running', '请等待当前阶段结束或暂停后再导出完整快照');
-    const exportId = common.uuid(), directory = join(this.store.root, 'exports'), path = join(directory, `${exportId}.tar.gz`);
-    await (await import('node:fs/promises')).mkdir(directory, { recursive: true });
-    await core.command('tar', ['-czf', path, '--exclude=working', '--exclude=*.lock', '-C', this.store.taskDir(id), '.']);
-    const file = await common.regular(path, 5 * 1024 * 1024 * 1024), record = { id: exportId, taskId: id, name: `${task.state.title}.tar.gz`, size: file.size, sha256: await common.fileDigest(path), createdAt: common.now() };
-    await common.atomic(join(directory, `${exportId}.json`), record); return record;
+    if (this.runner.active.has(id)) common.fail('task-running', '请等待当前阶段结束或暂停后再导出完整快照');
+    return this.store.withExportSnapshot(id, async (task, taskDir, include) => {
+      const exportId = common.uuid(), directory = join(this.store.root, 'exports');
+      await mkdir(directory, { recursive: true });
+      const staging = await mkdtemp(join(directory, '.export-')), archive = join(staging, 'task.tar.gz');
+      try {
+        await common.atomic(join(staging, 'state.json'), task.state);
+        const entries = (await readdir(taskDir)).filter(name => include(join(taskDir, name))).map(name => `./${name}`);
+        await core.command('tar', ['-czf', archive, '--exclude=working', '--exclude=*.lock', '-C', staging, './state.json', ...(entries.length ? ['-C', taskDir, ...entries] : [])]);
+        const file = await common.regular(archive, 5 * 1024 * 1024 * 1024), sha256 = await common.fileDigest(archive);
+        const record = { schemaVersion: TASK_EXPORT_SCHEMA, id: exportId, taskId: id, name: `${task.state.title}.tar.gz`, size: file.size, sha256, createdAt: common.now() };
+        await rename(archive, join(directory, `${exportId}.tar.gz`));
+        await common.atomic(join(directory, `${exportId}.json`), record); return record;
+      } finally { await rm(staging, { recursive: true, force: true }); }
+    });
   }
   async discover(p) { return new core.PostFaroPublisher((await this.store.settings()).value).discover(p.query, p); }
   async dispatch(method, p = {}) {
@@ -136,6 +238,14 @@ export class MediaService {
     const methods = {
       'settings.get': () => this.settings(), 'settings.save': async () => this.present(await this.store.saveSettings(p.value, p.revision)), 'models.list': () => this.models(), 'doctor': () => this.checks(p),
       'content.capabilities': () => core.contentCapabilities(),
+      'ideas.list': () => this.ideas.list(), 'ideas.save': () => this.ideas.apply(p.ops ?? []), 'ideas.media': () => this.ideas.media(p.src), 'ideas.unused-media': () => this.ideas.unusedMedia(),
+      'styles.list': () => this.styles.list(), 'styles.save': () => this.styles.apply(p.ops ?? []), 'styles.extract': () => this.styles.extract(p.text, { name: p.name }),
+      'insights.import': () => this.rules.saveMetrics(p.rows ?? p.metrics), 'insights.metrics': () => this.rules.metrics(), 'insights.analyze': async () => core.analyzeMetrics(p.rows ?? await this.rules.metrics()),
+      'rules.list': () => this.rules.list(), 'rules.save': () => this.rules.apply(p.ops ?? []),
+      'skills.export': async () => core.exportSkill({ root: this.store.root, rules: p.rules ?? (await this.rules.read()).rules, style: p.style ?? await this.styles.active(), name: p.name, skillsRoot: p.skillsRoot }),
+      'ideas.start-article': () => this.startIdeaWork(p.id, 'article'),
+      'ideas.start-work': () => this.startIdeaWork(p.id, p.type, p),
+
       'storage.set': () => this.changeRoot(p),
       'brief.parse': () => this.parseBrief(p),
       'tasks.export': () => this.exportTask(p.id),
@@ -143,7 +253,7 @@ export class MediaService {
       'tasks.bind': () => this.store.mutate(p.id, state => { state.sessionId = common.text(p.sessionId, '制作会话', { required: true, max: 200 }); }),
       'tasks.start': () => this.control(p.id, () => this.runner.start(p.id, { approveBrief: p.approveBrief === true })),
       'tasks.resume': () => this.control(p.id, () => this.runner.resume(p.id)), 'tasks.pause': () => this.runner.pause(p.id),
-      'tasks.redo': () => this.control(p.id, () => this.runner.redo(p.id, p.step, p.feedback)), 'tasks.revise': () => this.control(p.id, () => this.runner.revise(p.id, p.brief, { newRequirement: p.newRequirement === true })),
+      'tasks.redo': () => this.control(p.id, () => this.runner.redo(p.id, p.step, p.feedback)), 'tasks.revise': () => this.control(p.id, () => this.runner.revise(p.id, p.brief, { newRequirement: p.newRequirement === true, refreshWriting: p.refreshWriting === true })),
       'tasks.archive': () => this.setArchived(p.id, p.archived !== false),
       'review.decide': () => this.decide(p), 'artifacts.text': () => this.textArtifact(p), 'artifacts.upload': () => this.store.upload(p.id, p), 'uploads.list': async () => ({ uploads: await this.store.uploadsManifest(p.id) }), 'stage.request': () => this.request(p),
       'uploads.begin': () => this.store.transfers.begin(p.id, p), 'uploads.status': () => this.store.transfers.status(p.id, p.transferId), 'uploads.complete': () => this.store.transfers.complete(p.id, p.transferId),

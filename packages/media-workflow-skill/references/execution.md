@@ -6,7 +6,7 @@
 
 先确定唯一任务数据根，再创建任务。DSH 加载本技能时会附带工作台的实际数据根，所有 CLI 命令的 `--root` 必须使用该路径；工作区可以存放来源、需求草稿和阶段响应文件，但不能另建一份任务库。数据根下面才是 `tasks/<taskId>`，不要把 `tasks` 层重复拼接。若没有写入权限，说明需要为该目录取得写入权限，不要静默换到另一个目录后声称工作台已同步。
 
-独立 CLI 默认使用 `MEDIA_WORKFLOW_HOME`；未指定时，有 `DSH_HOME` 就使用 `$DSH_HOME/media-workflow`，否则使用 `~/.media-workflow`。可运行 `workflow.mjs help` 查看解析后的 `root`。DSH 中以宿主附带的实际数据根为准，因为宿主可能配置了自定义路径。已有任务沿用原根、任务 ID、审批和产物；位置不一致时先说明，不重新创建。
+独立 CLI 依次使用显式 `--root`、`MEDIA_WORKFLOW_HOME`、`$DSH_HOME/media-workflow`（若设置了 `DSH_HOME`）、`~/.media-workflow`；它不读取宿主记录所选数据根的 `location.json`。`workflow.mjs help` 可查看解析后的 `root`。DSH 中以宿主附带的实际数据根和 CLI 路径为准；已有任务沿用原根、任务 ID、审批和产物，不在位置不一致时另建。
 
 先校验完整需求：
 
@@ -31,6 +31,16 @@ node /absolute/skill/scripts/workflow.mjs complete TASK --root /absolute/task-st
 ```
 
 导入后会自动继续后续已具备输入的阶段，直到约定评审关、必需输入缺失或执行结束；`none` 可能从分镜导入直接推进到成片。仅制作任务的交付包装自动复用已生成文稿，无需再写平台包装。阶段结果必须基于请求内的实际资料。视频无旁白时 script 是画面字幕文稿，不代表要合成口播。不得编造脚本已执行、截图已取得、词边界已验证、成片已观看或内容已发布。工作台独立模型可自动完成这些结构化生成阶段。任务沿用创建时的模型与工具配置；后来修改全局设置不会自动更新旧任务。
+
+## 更新本次写作配置
+
+任务开始时保存创作风格与已确认规则；之后修改工作区设置不会改写已有任务。有明确需要时，重新提交同一任务的需求：
+
+```sh
+node /absolute/skill/scripts/workflow.mjs requirements TASK --root /absolute/task-store --brief /absolute/brief.json --new-requirement --refresh-writing
+```
+
+保留需求中的 `writingStyleId` 可继续选择原风格；省略或留空并加 `--refresh-writing` 则选用工作区当前风格。只修改 `writingStyleId` 不加该开关时，仍沿用原任务的规则。变更写作快照会更新正文及受影响的后续阶段，可复用未变化的素材和事实；规则不能改变发布授权。
 
 ## 执行与评审
 
@@ -63,7 +73,7 @@ node /absolute/skill/scripts/workflow.mjs unarchive TASK --root /absolute/task-s
 
 依赖检查使用 `workflow.mjs doctor`。视频本地渲染需要 ffmpeg/ffprobe；文章不需要配音和视频工具，图文 PNG 导出需要 settings.browser 指定的本机 Chrome；中文画面需要实际中文字体。NVENC 为可选加速，缺少 GPU 不阻止 CPU 制作。所选配音或画面后端才构成必需依赖，不自动安装或升级工具。
 
-Edge TTS 通过 Python adapter 显式请求 WordBoundary，保留原始事件，统一 PCM 后按实际样本数拼接。MiMo 语音由 scripts/mimo-tts.py 调用 OpenAI 兼容的 chat/completions，逐句合成并把每句实际时长写入句级时间轴（alignmentMethod 为 sentence-boundary），令牌只通过环境变量传入、不落盘；预置音色、文本设计音色（voicedesign）与参考音频复刻（voiceclone）按模型分支处理，复刻需要任务里已有的音频素材。句级或录音时长不能冒充词级。用户录音应提供实际对齐结果。多段或词级录音会生成 voice 阶段请求；用相同 complete 命令导入 timeline 与 evidence（实际工具、结果出处），执行器核对文稿、词边界和真实音频时长。不得按字数均摊后声称已验证。
+Edge TTS 通过 Python adapter 显式请求 WordBoundary，保留原始事件，统一 PCM 后按实际样本数拼接。MiMo 语音由 scripts/mimo-tts.py 调用 OpenAI 兼容的 chat/completions，逐句合成并把每句实际时长写入句级时间轴（alignmentMethod 为 sentence-boundary），语音子进程通过环境变量接收令牌。Token 与接口地址在配音、诊断时从数据根的当前设置一同读取，避免把轮换后的 Token 发到旧地址。新任务不持久化 Token，任务详情及工作台和 CLI 的完整导出会过滤历史状态中的 Token。已下载的旧版导出不会被改写，分享前请使用新版本重新导出。预置音色、文本设计音色（voicedesign）与参考音频复刻（voiceclone）按模型分支处理，复刻需要任务里已有的音频素材。句级或录音时长不能冒充词级。用户录音应提供实际对齐结果。多段或词级录音会生成 voice 阶段请求；用相同 complete 命令导入 timeline 与 evidence（实际工具、结果出处），执行器核对文稿、词边界和真实音频时长。不得按字数均摊后声称已验证。
 
 画面可使用 FFmpeg 的真实素材合成，或已安装的 huashu-motion 可编辑工程。使用后者时，需求与分镜关承担风格讨论，不另加一套默认评审。不得因渲染失败把产品界面降级为占位框、编造 UI 或重绘 Logo。
 

@@ -1,6 +1,7 @@
 import React, { useSyncExternalStore, useState } from 'react';
 import { App, Boundary } from './app.jsx';
 import { createClient } from './client.js';
+import { rememberPanel } from './navigation.js';
 
 export const name = 'dsh-media-workflow-client';
 export const inject = ['connection', 'slots', 'layout', 'sidebarRight', 'sidebarRightTabs'];
@@ -34,7 +35,13 @@ export function apply(ctx) {
       return <span><button type="button" onClick={() => { openCompanion(match[1]).catch(e => setError(e.message)); }}>查看产物 / 提出修改</button>{error && <small role="alert">{error}</small>}</span>;
     };
     try {
-      disposers.push(ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID }, Main)));
+      disposers.push(ctx.slots.inject('main', () => {
+        const unregister = ctx.slots.register({ name: 'main', key: PANEL_ID }, Main);
+        let stopRemembering;
+        try { stopRemembering = rememberPanel(ctx.layout, PANEL_ID); }
+        catch (error) { unregister(); throw error; }
+        return () => { try { stopRemembering?.(); } finally { unregister(); } };
+      }));
       disposers.push(ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order: 25, label: () => '媒体工作台' }, Icon)));
       disposers.push(ctx.sidebarRightTabs.register({ id: TAB_ID, kind: TAB_KIND, title: () => '媒体任务', keepMounted: false, guide: [{ id: 'media-workflow', order: 30, title: () => '媒体任务', description: () => '制作进度、评审和真实产物', icon: Icon }] }));
       disposers.push(ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: TAB_ID }, Companion)));

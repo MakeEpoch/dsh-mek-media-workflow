@@ -10,6 +10,8 @@ import { WorkflowError, now, safeError, digest } from './common.mjs';
 
 export async function command(bin, args, { cwd, signal, timeoutMs = 120000, env = {}, maxOutput = 4 * 1024 * 1024, allowFailure = false, onEvent, onProcess } = {}) {
   signal?.throwIfAborted();
+  const token = env.MIMO_API_KEY;
+  const redact = value => token ? value.replaceAll(token, '[redacted]').replaceAll(JSON.stringify(token).slice(1, -1), '[redacted]') : value;
   return new Promise((resolve, reject) => {
     let child, timer, forceTimer, stdout = '', stderr = '', lines = '', stopped = false, reason;
     const stop = error => {
@@ -28,13 +30,13 @@ export async function command(bin, args, { cwd, signal, timeoutMs = 120000, env 
     child.stdout.on('data', b => { stdout += b.toString(); if (Buffer.byteLength(stdout) > maxOutput) stop(new WorkflowError('tool-output-limit', '工具输出超过上限')); });
     child.stderr.on('data', b => {
       const chunk = b.toString(); stderr = (stderr + chunk).slice(-maxOutput); lines = (lines + chunk).slice(-maxOutput);
-      while (lines.includes('\n')) { const at = lines.indexOf('\n'), line = lines.slice(0, at); lines = lines.slice(at + 1); try { onEvent?.(JSON.parse(line)); } catch { /* ordinary diagnostic line */ } }
+      while (lines.includes('\n')) { const at = lines.indexOf('\n'), line = lines.slice(0, at); lines = lines.slice(at + 1); try { onEvent?.(JSON.parse(redact(line))); } catch { /* ordinary diagnostic line */ } }
     });
     child.once('error', error => { cleanup(); reject(new WorkflowError(error.code === 'ENOENT' ? 'tool-missing' : 'tool-start-failed', `无法启动 ${bin}：${safeError(error)}`)); });
     child.once('close', (code, exitSignal) => {
       cleanup(); if (reason) return reject(reason);
-      const result = { code, signal: exitSignal, stdout, stderr };
-      if (code !== 0 && !allowFailure) reject(new WorkflowError('tool-failed', `${bin} 执行失败：${safeError(stderr || stdout || `退出码 ${code}`)}`, { code }));
+      const result = { code, signal: exitSignal, stdout: redact(stdout), stderr: redact(stderr) };
+      if (code !== 0 && !allowFailure) reject(new WorkflowError('tool-failed', `${bin} 执行失败：${safeError(result.stderr || result.stdout || `退出码 ${code}`)}`, { code }));
       else resolve(result);
     });
   });

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { core, common } from './runtime.js';
+import { core, common } from '../lib/runtime.js';
 // The release embeds this exact skill package; the source checkout uses its sibling.
 const sourceCheckout = existsSync(new URL('../src/index.jsx', import.meta.url)) && existsSync(new URL('../../media-workflow-skill/lib/index.mjs', import.meta.url));
 const base = sourceCheckout ? '../../media-workflow-skill/' : '../embedded-skill/';

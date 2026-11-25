@@ -65,8 +65,11 @@ export async function lock(path, fn, { signal, waitMs = 6000 } = {}) {
   try { return await fn(); }
   finally { const owner = await json(path, null).catch(() => null); if (owner?.token === token) await rm(path, { force: true }); }
 }
+export function redactJson(value, token) {
+  return token && value != null ? JSON.parse(JSON.stringify(value, (_, item) => typeof item === 'string' ? item.replaceAll(token, '[redacted]') : item)) : value;
+}
 export function safeError(error) {
   return String(error?.message ?? error).replace(/(authorization|api[_-]?key|token|password|cookie)\s*[:=]\s*[^\s,;]+/ig, '$1=[redacted]').slice(0, 2000);
 }
-export const mime = name => ({ mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', wav: 'audio/wav', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml', json: 'application/json', md: 'text/markdown', txt: 'text/plain', srt: 'text/plain', vtt: 'text/vtt', html: 'text/html', pdf: 'application/pdf', css: 'text/css', woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf' })[name.split('.').pop().toLowerCase()] ?? 'application/octet-stream';
+export const mime = name => ({ mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mp3: 'audio/mpeg', wav: 'audio/wav', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml', json: 'application/json', md: 'text/markdown', txt: 'text/plain', srt: 'text/plain', vtt: 'text/vtt', html: 'text/html', pdf: 'application/pdf', css: 'text/css', woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf' })[name.split('.').pop().toLowerCase()] ?? 'application/octet-stream';
 export const htmlEscape = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

@@ -1,16 +1,25 @@
 import { transferMethods } from './transfers.mjs';
 import { ensureWorkspaceGuidance } from './workspace.mjs';
-import { mkdir, readdir, readFile, realpath } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm } from 'node:fs/promises';
+import { dirname, join, relative } from 'node:path';
 import { stepsFor, workType, workflowFor } from './profiles.mjs';
 import { normalizeBrief, resolveVoice, validateSettings, briefHash } from './schema.mjs';
-import { atomic, json, uuid, safeId, inside, lock, now, clone, fail, defaultRoot, digest, regular, mime, fileDigest } from './common.mjs';
+import { atomic, json, uuid, safeId, inside, lock, now, clone, fail, defaultRoot, digest, regular, mime, fileDigest, redactJson } from './common.mjs';
+
+const executionSnapshot = ({ mimoApiKey: _token, ...execution }) => execution;
+const stateFile = 'state.json';
+const excludeFromExport = (dir, path) => path.endsWith('.lock') || path === join(dir, 'working') || path === join(dir, stateFile) || (dirname(path) === dir && /^state\.json\.[\da-f-]+\.tmp$/i.test(path.slice(dir.length + 1)));
 
 export class TaskStore {
   constructor(root = defaultRoot()) { this.root = root; this.transfers = transferMethods(this); }
   taskDir(id) { return join(this.root, 'tasks', safeId(id)); }
   async prepareWorkspace() { return ensureWorkspaceGuidance(this.root); }
   async settings() { const s = await json(join(this.root, 'settings.json'), { revision: 0, value: validateSettings() }); return { revision: s.revision, value: validateSettings(s.value) }; }
+  async mimoSettings(execution) {
+    // Load the endpoint and its credential together; a rotated token must not reach an old endpoint.
+    const { mimoApiKey, mimoBaseUrl } = (await this.settings()).value;
+    return { ...execution, mimoApiKey, mimoBaseUrl };
+  }
   async saveSettings(value, revision) {
     return lock(join(this.root, 'settings.lock'), async () => {
       const current = await this.settings(); if (revision !== current.revision) fail('conflict', '设置已被其他窗口修改，请载入最新设置；你的草稿已保留');
@@ -22,16 +31,39 @@ export class TaskStore {
       const result = { revision: current.revision + 1, value: validateSettings(next) }; await atomic(join(this.root, 'settings.json'), result); return this.settings();
     });
   }
-  async create(input, { draft = false, sessionId = null, execution = {} } = {}) {
+  async create(input, { draft = false, sessionId = null, execution = {}, id = uuid(), ideaId, attachment, useWorkspaceStyle = true } = {}) {
     const config = Object.keys(execution).length ? execution : (await this.settings()).value;
-    const brief = resolveVoice(normalizeBrief(input, { draft }), config), id = uuid(), dir = this.taskDir(id);
+    const destination = this.taskDir(id);
+    const uploadPath = attachment && join('uploads', 'upload-idea', attachment.name);
+    if (attachment) {
+      const source = { id: 'upload-idea', name: attachment.name, path: inside(destination, uploadPath), role: attachment.role, attribution: attachment.attribution };
+      input = { ...input, sources: [...(input.sources ?? []), source] };
+    }
+    const brief = resolveVoice(normalizeBrief(input, { draft }), config);
     await this.prepareWorkspace();
-    await mkdir(dir, { recursive: true });
     const state = { schemaVersion: 1, id, revision: 1, runRevision: 1, title: brief.title || '未命名草稿', style: brief.style, workflowProfile: clone(workflowFor(brief)), workType: workType(brief), status: 'draft',
-      createdAt: now(), updatedAt: now(), sessionId, briefHash: briefHash(brief), activeStep: 'brief', review: clone(brief.review), execution: clone(execution),
+      createdAt: now(), updatedAt: now(), sessionId, briefHash: briefHash(brief), activeStep: 'brief', review: clone(brief.review), execution: clone(executionSnapshot(execution)),
+      ...(ideaId ? { ideaId } : {}),
+      ...(!useWorkspaceStyle ? { useWorkspaceStyle: false } : {}),
       pendingReview: null, pauseRequested: false, error: null, feedback: [], archivedAt: null,
       steps: stepsFor(brief).map(s => ({ key: s.key, status: 'pending', revision: 0, inputDigest: null, artifactDigest: null, artifacts: [], checks: [], history: [] })), receipts: [] };
-    await atomic(join(dir, 'brief.json'), brief); await atomic(join(dir, 'requirements', '1.json'), brief); await atomic(join(dir, 'state.json'), state);
+    // Publish the task only after its initial brief, state and source snapshot are ready.
+    const tasks = dirname(destination);
+    await mkdir(tasks, { recursive: true });
+    const dir = await mkdtemp(join(tasks, '.creating-'));
+    try {
+      if (attachment) {
+        const path = inside(dir, uploadPath);
+        await mkdir(dirname(path), { recursive: true });
+        await copyFile(attachment.path, path);
+      }
+      await atomic(join(dir, 'brief.json'), brief);
+      await atomic(join(dir, 'requirements', '1.json'), brief);
+      await atomic(join(dir, 'state.json'), state);
+      await rename(dir, destination);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
     return { state, brief };
   }
   async read(id) {
@@ -39,7 +71,22 @@ export class TaskStore {
     try { state = await json(join(dir, 'state.json')); } catch (e) { if (e.code === 'ENOENT') fail('not-found', '任务不存在'); throw e; }
     const brief = await json(join(dir, 'brief.json')), expected = stepsFor(brief);
     if (state.schemaVersion !== 1 || !Array.isArray(state.steps) || state.steps.length !== expected.length || state.steps.some((s, i) => s.key !== expected[i]?.key) || (state.workType && state.workType !== workType(brief)) || (state.workflowProfile && digest(state.workflowProfile) !== digest(workflowFor(brief)))) fail('corrupt-data', '任务状态损坏，原始文件已保留');
+    // Old tasks remain readable, but snapshots/returned results never expose the stored credential.
+    if (state.execution) {
+      const { mimoApiKey: token } = state.execution;
+      state.execution = executionSnapshot(state.execution);
+      // Older provider errors may have echoed the same credential in diagnostic text.
+      if (state.error) state.error = redactJson(state.error, token);
+    }
     return { state, brief };
+  }
+  async withExportSnapshot(id, write) {
+    const dir = this.taskDir(id);
+    return lock(join(dir, 'run.lock'), () => lock(join(dir, 'state.lock'), async () => {
+      const task = await this.read(id);
+      if (['running', 'publishing', 'pausing'].includes(task.state.status)) fail('task-running', '请先暂停或恢复当前阶段，再导出完整快照');
+      return write(task, dir, path => !excludeFromExport(dir, path));
+    }, { waitMs: 100 }), { waitMs: 100 });
   }
   async mutate(id, fn, expectedRevision) {
     return lock(join(this.taskDir(id), 'state.lock'), async () => {
@@ -63,7 +110,7 @@ export class TaskStore {
       if ((archived ? group === 'archived' : !group || group === kind) && (!status || state.status === status) && state.title.toLowerCase().includes(query.toLowerCase())) found.push(state);
     };
     for (const d of dirs) {
-      if (!d.isDirectory() || !/^[\w.-]+$/.test(d.name)) continue;
+      if (!d.isDirectory() || !/^[a-zA-Z0-9][\w.-]*$/.test(d.name)) continue;
       try { const { state } = await this.read(d.name); include(state); }
       catch { if (!sessionId) include({ id: d.name, title: d.name, status: 'corrupt', updatedAt: '', error: { message: '无法读取任务，文件已保留' } }); }
     }

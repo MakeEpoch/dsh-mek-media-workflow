@@ -79,7 +79,7 @@ if (process.argv.includes('--media-runtime')) {
   mediaRuntime = { directory: runtimeDirectory, taskRoot: store.root, settingsRevision: saved.revision, settingsBackup, versions: mediaRuntime.versions, modelFiles: mediaRuntime.modelFiles };
 }
 const files = {};
-for (const name of ['lib/client.js', 'host/core.js', 'host/runtime.js', 'host/service.js', 'embedded-skill/SKILL.md', 'embedded-skill/lib/runner.mjs', 'embedded-skill/lib/edits.mjs']) {
+for (const name of ['lib/client.js', 'host/core.js', 'lib/runtime.js', 'host/service.js', 'embedded-skill/SKILL.md', 'embedded-skill/lib/runner.mjs', 'embedded-skill/lib/edits.mjs']) {
   files[name] = hash(await readFile(join(resolved, name)));
 }
 const receipt = { installedAt: new Date().toISOString(), profile, version: record.version, sha256: record.sha256, archive, backup, alreadyInstalled, mediaRuntime, verified: { manifest: true, bundleSelected: true, otherDependenciesPreserved: true, cordisPreserved: true, resolver: resolved, files }, activation: 'pending official plugin hot reload and browser verification; installer does not restart DSH' };

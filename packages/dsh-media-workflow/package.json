@@ -1,6 +1,6 @@
 {
   "name": "dsh-mek-media-workflow",
-  "version": "0.2.1",
+  "version": "0.2.8",
   "description": "带工作台、随聊面板、评审和发布核验的 DSH 媒体制作插件",
   "type": "module",
   "main": "./dsh/index.js",

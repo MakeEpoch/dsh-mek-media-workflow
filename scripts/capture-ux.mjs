@@ -8,6 +8,9 @@ page.on('pageerror', e => errors.push(e.message));
 const shot = name => page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
 try {
   await page.goto('http://127.0.0.1:3189/');
+  await page.getByRole('heading', { name: '工作区概览', exact: true }).waitFor();
+  await shot('workspace-home');
+  await page.getByRole('navigation', { name: '媒体工作流导航' }).getByRole('button', { name: '任务', exact: true }).click();
   await page.getByRole('heading', { name: '制作任务', exact: true }).waitFor();
   await page.getByRole('heading', { name: '一条资讯，如何讲清楚（虚构样例）', exact: true }).waitFor();
   await shot('tasks');

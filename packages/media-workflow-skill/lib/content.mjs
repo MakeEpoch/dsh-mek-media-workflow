@@ -24,6 +24,18 @@ export const VISUAL_STYLES = [
   { id: 'natural', label: '自然纪实', guidance: '保留生活细节和合理的不完美，用自然画面、克制文字与声音建立可信感；不人为制造伪经历。' },
   { id: 'motion', label: '动态设计', guidance: '使用与信息对应的图层、卡片和动效，按节奏揭示内容；需要实际制作工程，不能靠描述宣称已实现。' },
 ];
+export function linksInText(text) {
+  const links = new Set();
+  for (const match of String(text || '').matchAll(/https?:\/\/[^\s<>"'，。；！？、）】》]+/gi)) {
+    let candidate = match[0].replace(/[.,;!?]+$/, '');
+    while (candidate.endsWith(')') && candidate.split(')').length > candidate.split('(').length) candidate = candidate.slice(0, -1);
+    try {
+      const url = new URL(candidate);
+      if (!url.username && !url.password) links.add(url.href);
+    } catch { /* Plain text remains in the brief. */ }
+  }
+  return [...links];
+}
 export function contentCapabilities() {
   return structuredClone({
     positioning: '多风格、多类型内容制作',

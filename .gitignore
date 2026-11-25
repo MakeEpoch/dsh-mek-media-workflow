@@ -4,3 +4,5 @@ artifacts/
 *.tgz
 packages/dsh-media-workflow/embedded-skill/
 packages/dsh-media-workflow/lib/
+/packages/dsh-media-workflow/LICENSE
+/packages/media-workflow-skill/LICENSE

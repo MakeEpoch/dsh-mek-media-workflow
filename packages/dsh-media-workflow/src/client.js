@@ -1,4 +1,8 @@
+import { currentSession, readTabState, writeTabState } from './navigation.js';
+
 export const ENDPOINT = 'dsh-media-workflow';
+const WORKSPACE_PAGES = ['home', 'tasks', 'settings', 'create', 'workbench', 'ideas', 'styles', 'insights'];
+const TASK_GROUPS = ['', 'attention', 'active', 'done', 'draft', 'archived'];
 export function requireStorageRoot(settings) {
   const root = settings?.storage?.root;
   if (typeof root !== 'string' || !root.trim()) { const error = new Error('工作目录服务尚未就绪，请重新连接后再设置目录。'); error.code = 'host-not-ready'; throw error; }
@@ -6,10 +10,16 @@ export function requireStorageRoot(settings) {
 }
 export function createClient(connection, { base = new URL('./', document.baseURI).href } = {}) {
   const listeners = new Set(); let disposed = false, storageRoot = null;
-  const selected = new Map();
-  let requestedPage = null;
+  const selected = new Map(), views = new Map();
   const selectionKey = scope => `media-workflow-selection:${base}:${scope || 'global'}`;
-  const clearSelection = () => { selected.clear(); requestedPage = null; try { for (const key of Object.keys(localStorage)) if (key.startsWith(`media-workflow-selection:${base}:`)) localStorage.removeItem(key); } catch {} };
+  const workspaceKey = `${selectionKey(null)}:workspace`;
+  const viewKey = () => `media-workflow:view:${base}${currentSession() || ''}`;
+  const clearSelection = () => {
+    selected.clear();
+    views.clear();
+    writeTabState(viewKey(), null);
+    try { for (const key of Object.keys(localStorage)) if (key.startsWith(`media-workflow-selection:${base}:`)) localStorage.removeItem(key); } catch {}
+  };
   return {
     async call(method, payload = {}, signal) {
       if (disposed) throw new Error('连接已关闭');
@@ -20,13 +30,34 @@ export function createClient(connection, { base = new URL('./', document.baseURI
       return response.value;
     },
     artifactUrl(id, path) { const url = new URL(`api/${ENDPOINT}/artifact`, base); url.searchParams.set('task', id); url.searchParams.set('path', path); return url.href; },
+    ideaMediaUrl(src) { const url = new URL(`api/${ENDPOINT}/idea-media`, base); url.searchParams.set('src', src); return url.href; },
+    async ideaUpload(file) { const url = new URL(`api/${ENDPOINT}/idea-upload`, base); url.searchParams.set('name', file.name); url.searchParams.set('mime', file.type || ''); const response = await fetch(url, { method: 'POST', body: file, credentials: 'same-origin' }); const body = await response.json(); if (!body.ok) { const e = new Error(body.error?.message || '上传失败'); e.code = body.error?.code; throw e; } return body.value; },
     canvasImageUrl(id, path, image) { const url = new URL(`api/${ENDPOINT}/canvas-image`, base); url.searchParams.set('task', id); url.searchParams.set('path', path); url.searchParams.set('image', image); return url.href; },
     uploads(id, signal) { return this.call('uploads.list', { id }, signal).then(r => r.uploads ?? []); },
     sampleUrl(voice) { const url = new URL(`api/${ENDPOINT}/sample`, base); url.searchParams.set('name', voice); return url.href; },
     exportUrl(id) { const url = new URL(`api/${ENDPOINT}/export`, base); url.searchParams.set('id', id); return url.href; },
-    getPage() { return requestedPage; },
-    navigate(page) { if (!['tasks', 'settings', 'create', 'workbench'].includes(page)) return; requestedPage = page; for (const fn of listeners) { try { fn({ type: 'navigation', page }); } catch {} } },
+    getWorkspaceView() {
+      const key = viewKey();
+      const saved = views.get(key) ?? readTabState(key);
+      if (!WORKSPACE_PAGES.includes(saved?.page)) return null;
+      const taskId = typeof saved.taskId === 'string' && saved.taskId ? saved.taskId : null;
+      if (saved.page === 'workbench' && !taskId) return null;
+      return { page: saved.page, taskId, group: TASK_GROUPS.includes(saved.group) ? saved.group : '' };
+    },
+    rememberWorkspaceView(page, taskId, group) {
+      const key = viewKey(), view = { page, taskId, group };
+      views.set(key, view);
+      writeTabState(key, view);
+      try { localStorage.removeItem(workspaceKey); } catch {}
+    },
+    navigate(page) {
+      if (!WORKSPACE_PAGES.includes(page)) return;
+      const taskId = page === 'workbench' ? this.getSelected(null) : null;
+      this.rememberWorkspaceView(page, taskId, '');
+      for (const fn of listeners) { try { fn({ type: 'navigation', page, taskId }); } catch {} }
+    },
     getSelected(scope) { if (selected.has(scope || 'global')) return selected.get(scope || 'global'); try { return localStorage.getItem(selectionKey(scope)); } catch { return null; } },
+    getWorkspaceTask() { try { return localStorage.getItem(workspaceKey); } catch { return null; } },
     select(id, scope) { selected.set(scope || 'global', id); try { localStorage.setItem(selectionKey(scope), id); } catch {} for (const fn of listeners) { try { fn({ type: 'selection', id, scope: scope || null }); } catch {} } },
     // Forget a persisted selection without broadcasting one: archiving must not reopen that task after a refresh.
     deselect(scope) { const key = scope || 'global'; selected.delete(key); try { localStorage.removeItem(selectionKey(key)); } catch {} },

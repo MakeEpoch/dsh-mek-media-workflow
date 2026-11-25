@@ -1,7 +1,58 @@
-import React, { useId } from 'react';
+import React, { useEffect, useId, useState } from 'react';
+import { CONTENT_TYPES } from '../../media-workflow-skill/lib/content.mjs';
+
+export function safeLink(value) {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+}
 export function Button({ primary, quiet, danger, className = '', children, ...props }) { return <button type="button" className={`mw-button ${primary ? 'mw-primary' : ''} ${quiet ? 'mw-quiet' : ''} ${danger ? 'mw-danger' : ''} ${className}`} {...props}>{children}</button>; }
 export function Badge({ status, children }) { return <span className={`mw-badge ${['complete', 'verified', 'pass', 'available'].includes(status) ? 'good' : ['failed', 'fail', 'corrupt'].includes(status) ? 'bad' : ['needs_review', 'needs_check', 'blocked', 'waiting_for_login', 'unknown', 'unavailable'].includes(status) ? 'warn' : ''}`}>{children || status}</span>; }
 export function Field({ label, children }) { const id = useId(); return <div><label className="mw-label" htmlFor={id}>{label}</label>{React.cloneElement(children, { id })}</div>; }
+export function AttachmentIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" />
+  </svg>;
+}
+export function WorkChoices({ client, visible = true, type, styleId = '', savedStyle, revising, keepOriginal, onType, onStyle }) {
+  const [library, setLibrary] = useState(null), [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!visible) return;
+    const controller = new AbortController();
+    setError(false);
+    client.call('styles.list', {}, controller.signal).then(data => {
+      if (!controller.signal.aborted) setLibrary(data);
+    }).catch(() => {
+      if (!controller.signal.aborted) setError(true);
+    });
+    return () => controller.abort();
+  }, [client, visible, attempt]);
+  const styles = library?.styles ?? [];
+  const groups = [
+    ['我的风格', styles.filter(row => !row.preset)],
+    ...(library?.categories ?? []).map(category => [category, styles.filter(row => row.preset && row.category === category)]),
+  ];
+  const defaultLabel = keepOriginal
+    ? `原风格：${savedStyle?.name || '默认'}`
+    : `随工作区${library?.active ? `：${library.active.name}` : ''}`;
+  return <div className="mw-form-grid mw-work-choices">
+    <Field label="作品类型"><select className="mw-field" value={type} disabled={revising} onChange={e => onType(e.target.value)}>
+      {CONTENT_TYPES.map(row => <option key={row.id} value={row.id}>{row.label}</option>)}
+    </select></Field>
+    <Field label="创作风格"><select className="mw-field" value={styleId} onChange={e => onStyle(e.target.value)}>
+      <option value="">{defaultLabel}</option>
+      {styleId && !styles.some(row => row.id === styleId) && <option value={styleId}>
+        {savedStyle?.id === styleId ? savedStyle.name : library ? '原选风格已不可用' : '已选风格'}
+      </option>}
+      {groups.filter(([, rows]) => rows.length > 0).map(([name, rows]) => <optgroup key={name} label={name}>
+        {rows.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
+      </optgroup>)}
+    </select></Field>
+    {error && <Button quiet onClick={() => setAttempt(n => n + 1)}>重新读取风格</Button>}
+  </div>;
+}
 export const MODES = { none: '免阶段评审', gates: '四关评审', steps: '逐步评审' };
 export const STATUS = { draft: '草稿', ready: '待执行', running: '制作中', publishing: '发布中', needs_review: '等你评审', blocked: '需要补充', failed: '执行失败', pausing: '暂停中', paused: '已暂停', complete: '已完成', needs_check: '发布待核验', corrupt: '文件需检查' };
 export const artifactLabel = file => ({ 'article.html': '排版文章', 'gallery.html': '图文阅读预览', 'article.md': '完整正文与配图说明', 'publication.json': '可编辑排版工程', 'layout.json': '编排方案', 'layout.md': '编排说明', 'sources.json': '出处与待核实', 'brief.json': '制作需求', 'brief.md': '需求说明', 'materials.json': '来源与事实', 'materials.md': '素材清单', 'script.json': '内容脚本', 'script.md': '文稿', 'storyboard.json': '分镜', 'storyboard.md': '分镜稿', 'timeline.json': '配音时间轴', 'preview.mp4': '画面预览', 'final.mp4': '最终成片', 'cover.png': '封面', 'qa.json': '检查报告', 'package.json': '发布文案', 'render-project.json': '可编辑工程', 'stage-edit.json': '本版修改' })[file.name] || file.name;

@@ -20,8 +20,8 @@ const configuration = { root, locationFile: join(root, 'host-location.json') };
 const definition = { name: 'media-workflow-host-smoke', inject: ['connection', 'skills'], apply };
 const plugin = ctx.plugin(definition, configuration);
 try {
-  for (let n = 0; n < 100 && routes.size !== 7; n++) await new Promise(r => setTimeout(r, 20));
-  assert.equal(routes.size, 7); const skills = await ctx.skills.list(); assert.ok(skills.some(s => s.name === 'media-workflow'));
+  for (let n = 0; n < 100 && routes.size !== 9; n++) await new Promise(r => setTimeout(r, 20));
+  assert.equal(routes.size, 9); const skills = await ctx.skills.list(); assert.ok(skills.some(s => s.name === 'media-workflow'));
   const skill = await ctx.skills.get('media-workflow'); assert.ok(skill.content.includes('十步')); assert.ok(skill.resourceBase.path.endsWith('/media-workflow-skill/'));
   const market = parseMarketIndex(await json(resolve('market-index.json')), 'https://example.invalid/media-workflow/market-index.json'); assert.equal(market.plugins.length, 0);
   const route = routes.get('/api/dsh-media-workflow'); const response = await route.fetch(new Request('http://localhost/api/dsh-media-workflow', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'smoke', method: 'dsh-media-workflow', payload: { method: 'tasks.list', payload: {} } }) }));
@@ -39,8 +39,8 @@ try {
   assert.ok((await ctx.skills.get('media-workflow')).content.includes(nextRoot));
   await plugin.dispose(); assert.equal(routes.size, 0); assert.equal((await ctx.skills.list()).some(s => s.name === 'media-workflow'), false);
   const reloaded = ctx.plugin(definition, configuration);
-  for (let n = 0; n < 100 && routes.size !== 7; n++) await new Promise(r => setTimeout(r, 20));
-  assert.equal(routes.size, 7); assert.ok((await ctx.skills.get('media-workflow')).content.includes(nextRoot));
+  for (let n = 0; n < 100 && routes.size !== 9; n++) await new Promise(r => setTimeout(r, 20));
+  assert.equal(routes.size, 9); assert.ok((await ctx.skills.get('media-workflow')).content.includes(nextRoot));
   await reloaded.dispose(); assert.equal(routes.size, 0);
   const record = { passed: true, checks: ['installed Cordis lifecycle', 'installed DSH skill registry provider list/get', 'real market-index parser', 'host RPC', 'startup doctor diagnostic snapshots', 'runtime directory switch and live skill root', 'directory retained across plugin recreation', 'provider and route disposal', 'voice sample route'], boundary: '真实 Cordis 与 skills 服务；connection 为隔离路由夹具，未启动或重启日常 DSH，未访问发布平台' }; await atomic(join(root, 'result.json'), record); console.log(JSON.stringify(record, null, 2));
 } finally { await ctx.fiber.dispose(); }

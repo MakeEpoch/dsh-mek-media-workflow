@@ -32,8 +32,10 @@ export async function modelJson(llm, settings, kind, payload, signal, { attachme
     for (const image of payload.images) { const data = await readFile(image.absolutePath); bytes += data.length; if (bytes > 30 * 1024 * 1024) fail('analysis-budget', '单次图像输入超过 30MB，请缩小图片或减少关键帧'); encoded.push({ type: 'text', text: JSON.stringify({ imageId: image.id, sourceId: image.sourceId, time: image.time }) }, { type: 'image', data: data.toString('base64'), mimeType: image.mimeType }); }
     imageBlocks = await attachments.admitPromptContent(encoded);
   }
+  const { writing, ...brief } = payload.brief ?? {};
+  const request = writing ? { ...payload, brief } : payload;
   const blocks = new Map(), deltas = new Map(); let finish;
-  for await (const chunk of call.stream({ ...call.config, system: GENERATION_SYSTEM, tools: [], messages: [{ role: 'user', content: [{ type: 'text', text: JSON.stringify({ kind, schema: SHAPES[kind], ...payload, guidance: stageGuidance(kind, payload) }) }, ...imageBlocks] }], signal: combined })) {
+  for await (const chunk of call.stream({ ...call.config, system: GENERATION_SYSTEM, tools: [], messages: [{ role: 'user', content: [{ type: 'text', text: JSON.stringify({ kind, schema: SHAPES[kind], ...request, guidance: stageGuidance(kind, payload) }) }, ...imageBlocks] }], signal: combined })) {
     combined.throwIfAborted();
     if (chunk.type === 'text-delta') deltas.set(chunk.index, (deltas.get(chunk.index) ?? '') + chunk.text);
     if (chunk.type === 'block-end' && chunk.block?.type === 'text') blocks.set(chunk.index, chunk.block.text);
